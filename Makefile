@@ -9,7 +9,7 @@ EXE = ADASTRA
 inc_paths = 
 	
 
-files = main.c 
+files = main.c window.c
 all_OBJS = $(addprefix $(OBJ)/, $(files:.c=.o))
 all_DEPS = $(addprefix $(DEP)/, $(files:.c=.d))
 
