@@ -1,4 +1,3 @@
-
 TMP = tmps
 OBJ = $(TMP)/obj
 DEP = $(TMP)/dep
@@ -8,8 +7,11 @@ CC = gcc
 EXE = ADASTRA
 inc_paths = 
 	
+SPV = res/shaders
+rpath =  $(shell pwd)
 
-files = main.c window.c
+
+files = main.c window.c vulkan.c
 all_OBJS = $(addprefix $(OBJ)/, $(files:.c=.o))
 all_DEPS = $(addprefix $(DEP)/, $(files:.c=.d))
 
