@@ -32,5 +32,6 @@ window_closeWindow(struct window *windowParam){
 int32_t 
 window_getRequiredInsanceExtentions(const char ***extensions, uint32_t *extensionsCount){
     *extensions = glfwGetRequiredInstanceExtensions(extensionsCount);
+    
     return 0;
 }
