@@ -13,6 +13,7 @@ int main(){
     printf("hola2\n");
     
     VkInstance instance;
+    VkPhysicalDevice physicalDevice;
     
     struct window *window;
     
@@ -21,18 +22,18 @@ int main(){
         exit(0);
     }
     
-    if(vulkan_createInstance(&instance)){
-        fprintf(stderr, "Error creating instance\n");
-        assert(0 && "Error creating instance");
+    if(vulkan_initVulkan(&instance, &physicalDevice)){
+        fprintf(stderr, "Error creating vulkan\n");
+        assert(0 && "Error creating vulkan");
     }
     
     while(!window_closeWindow(window)){
         glfwPollEvents();
     }
     
-    if(vulkan_deleteInstance(instance)){
-        fprintf(stderr, "Error deleting instance\n");
-        assert(0 && "Error deleting instance");
+    if(vulkan_deleteVulkan(&instance, &physicalDevice)){
+        fprintf(stderr, "Error deleting vulkan\n");
+        assert(0 && "Error deleting all vulkan");
     }
     
     printf("adios\n");
