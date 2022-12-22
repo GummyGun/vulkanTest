@@ -10,51 +10,60 @@
 
 /*------------------prototipes------------------*/
 
-//int32_t vulkan_initVulkan(VkInstance *instance, VkPhysicalDevice *physicalDevice);
+//int32_t vulkan_initVulkan(VkInstance *instance, VkDevice *device);
 //int32_t vulkan_createInstance(VkInstance *instance);
-//int32_t vulkan_createPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance);
+//int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance);
+//int32_t vulkan_createLogicalDevice(VkDevice *device, VkInstance instance, VkPhysicalDevice physicalDevice);
 
 //deletion functions
 
-//int32_t vulkan_deleteVulkan(VkInstance *instance, VkPhysicalDevice *physicalDevice);
+//int32_t vulkan_deleteVulkan(VkInstance *instance, VkDevice *device);
 //int32_t vulkan_deleteInstance(VkInstance *instance);
-//int32_t vulkan_deletePhysicalDevice(VkPhysicalDevice *physicalDevice);
+//int32_t vulkan_deleteLogicalDevice(VkDevice *device);
 
 //statics
 
-static int32_t s_enableLayers(const char **layerNames, int32_t layerNamesCount, VkLayerProperties *availableLayers, uint32_t availableLayersCount);
+static int32_t s_enableLayers(const char **layerNames, uint32_t layerNamesCount, VkLayerProperties *availableLayers, uint32_t availableLayersCount);
 static void s_getExtensions(VkExtensionProperties **extensions, uint32_t *extensionsCount);
 static void s_freeExtensions(VkExtensionProperties **extensions);
 
 static void s_getLayers(VkLayerProperties **layers, uint32_t *layersCount);
 static void s_freeLayers(VkLayerProperties **layers);
 
+
 static int32_t s_getPhysicalDevices(VkPhysicalDevice **PDs, uint32_t *PDsCount, VkInstance instance);
-static int8_t s_validatePhysicalDevice(VkPhysicalDevice PD);
+static int32_t s_evaluatePhysicalDevices(VkPhysicalDevice *physicalDevice, VkPhysicalDevice *PDs, uint32_t PDsCount);
+static int32_t s_ratePhysicalDevice(VkPhysicalDevice physicalDevice);
 static void s_freePhysicalDevices(VkPhysicalDevice **PDs);
+
+
+static void s_getPhysicalDeviceQueueFamilies(VkQueueFamilyProperties **queueProperties, uint32_t *queuePropertiesCount, VkPhysicalDevice physicalDevice);
+static void s_freePhysicalDeviceQueueFamilies(VkQueueFamilyProperties **queueProperties);
 
 /*------------------implementations------------------*/
 
 int32_t 
-vulkan_initVulkan(VkInstance *instance, VkPhysicalDevice *physicalDevice){
+vulkan_initVulkan(VkInstance *instance, VkDevice *device){
+    VkPhysicalDevice physicalDevice;
+    
     if(vulkan_createInstance(instance)){
         fprintf(stderr, "Error creating instance\n");
         return 1;
     }
-    if(vulkan_createPhysicalDevice(physicalDevice, *instance)){
+    if(vulkan_selectPhysicalDevice(&physicalDevice, *instance)){
         fprintf(stderr, "Error chossing physical device\n");
         return 1;
-    };
+    }
+    if(vulkan_createLogicalDevice(device, *instance, physicalDevice)){
+        fprintf(stderr, "Error creating logical device\n");
+        return 1;
+    }
     
     return 0;
 }
 
 int32_t 
-vulkan_deleteVulkan(VkInstance *instance, VkPhysicalDevice *physicalDevice){
-    if(vulkan_deletePhysicalDevice(physicalDevice)){
-        fprintf(stderr, "Error deleting physical device\n");
-        return 1;
-    }
+vulkan_deleteVulkan(VkInstance *instance, VkDevice *device){
     if(vulkan_deleteInstance(instance)){
         fprintf(stderr, "Error deleting instance\n");
         return 1;
@@ -114,7 +123,7 @@ vulkan_createInstance(VkInstance *instance){
     }
     
     const char *enabledLayerNames[]={"VK_LAYER_KHRONOS_validation"};
-    int32_t enabledLayerNamesCount=sizeof(enabledLayerNames)/sizeof(int8_t*);
+    uint32_t enabledLayerNamesCount=sizeof(enabledLayerNames)/sizeof(int8_t*);
     
     if(s_enableLayers((const char**)enabledLayerNames, enabledLayerNamesCount, layers, layersCount)){
         printf("Not all required layers were available\n");
@@ -145,7 +154,7 @@ vulkan_deleteInstance(VkInstance *instance){
 }
 
 int32_t 
-vulkan_createPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance){
+vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance){
     printf("creating a physical device\n");
     VkPhysicalDevice *physicalDevices;
     uint32_t physicalDevicesCount=0;
@@ -153,33 +162,41 @@ vulkan_createPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instanc
         fprintf(stderr, "no GPU with vulkan suport was found\n");
         return 1;
     }
-    int32_t suitableGPU=0;
-    for(int iter=0; iter<physicalDevicesCount; iter++){
-        if(!s_validatePhysicalDevice(*(physicalDevices+iter))){
-            *physicalDevice=*(physicalDevices+iter);
-            suitableGPU=1;
-        }
-    }
-    if(!suitableGPU){
+    printf("deviceCount : %d\n", physicalDevicesCount);
+    
+    if(s_evaluatePhysicalDevices(physicalDevice, physicalDevices, physicalDevicesCount)){
         fprintf(stderr, "no suitable GPU available\n");
         return 1;
+    }else{
+        printf("suitable: Yes\n");
     }
-    printf("deviceCount : %d\n", physicalDevicesCount);
+
     s_freePhysicalDevices(&physicalDevices);
     return 0;
 }
 
-int32_t 
-vulkan_deletePhysicalDevice(VkPhysicalDevice *physicalDevice){
-    printf("deleting a physical device\n");
+int32_t
+vulkan_createLogicalDevice(VkDevice *device, VkInstance instance, VkPhysicalDevice physicalDevice){
+    VkQueueFamilyProperties *queueProperties;
+    uint32_t queuePropertiesCount;
+    s_getPhysicalDeviceQueueFamilies(&queueProperties, &queuePropertiesCount, physicalDevice);
+    
+    printf("physical Dev\n");
+    
+    s_freePhysicalDeviceQueueFamilies(&queueProperties);
     return 0;
+}
+
+int32_t
+vulkan_deleteLogicalDevice(VkDevice *device){
+    
 }
 
 //static methods
 
 static
 int32_t
-s_enableLayers(const char **layerNames, int32_t layerNamesCount, VkLayerProperties *availableLayers, uint32_t availableLayersCount){
+s_enableLayers(const char **layerNames, uint32_t layerNamesCount, VkLayerProperties *availableLayers, uint32_t availableLayersCount){
     int32_t found;
     for(int32_t iter=0; iter<layerNamesCount; iter++){
         found=0;
@@ -239,15 +256,28 @@ s_getPhysicalDevices(VkPhysicalDevice **PDs, uint32_t *PDsCount, VkInstance inst
 }
 
 static 
-int8_t
-s_validatePhysicalDevice(VkPhysicalDevice physicalDevice){
+int32_t
+s_evaluatePhysicalDevices(VkPhysicalDevice *physicalDevice, VkPhysicalDevice *PDs, uint32_t PDsCount){
+    int32_t suitableGPU=1;
+    for(int iter=0; iter<PDsCount; iter++){
+        if(!s_ratePhysicalDevice(*(PDs+iter))){
+            *physicalDevice=*(PDs+iter);
+            suitableGPU=0;
+        }
+    }
+    return suitableGPU;
+}
+
+static
+int32_t
+s_ratePhysicalDevice(VkPhysicalDevice physicalDevice){
     VkPhysicalDeviceProperties deviceProperties;
     VkPhysicalDeviceFeatures deviceFeatures;
     vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-    
     vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
     
     printf("%s\n", deviceProperties.deviceName);
+    
     return 0;
 }
 
@@ -258,3 +288,17 @@ s_freePhysicalDevices(VkPhysicalDevice **PDs){
     *PDs=NULL;
 }
 
+static
+void
+s_getPhysicalDeviceQueueFamilies(VkQueueFamilyProperties **queueProperties, uint32_t *queuePropertiesCount, VkPhysicalDevice physicalDevice){
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, queuePropertiesCount, NULL);
+    *queueProperties = malloc(*queuePropertiesCount*sizeof(VkQueueFamilyProperties));
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, queuePropertiesCount, *queueProperties);
+}
+
+static
+void
+s_freePhysicalDeviceQueueFamilies(VkQueueFamilyProperties **queueProperties){
+    free(*queueProperties);
+    *queueProperties=NULL;
+}

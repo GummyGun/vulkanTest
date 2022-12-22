@@ -10,10 +10,10 @@
 #include "vulkan.h"
 
 int main(){
-    printf("hola2\n");
+    printf("Startup\n");
     
     VkInstance instance;
-    VkPhysicalDevice physicalDevice;
+    VkDevice device;
     
     struct window *window;
     
@@ -22,7 +22,7 @@ int main(){
         exit(0);
     }
     
-    if(vulkan_initVulkan(&instance, &physicalDevice)){
+    if(vulkan_initVulkan(&instance, &device)){
         fprintf(stderr, "Error creating vulkan\n");
         assert(0 && "Error creating vulkan");
     }
@@ -31,7 +31,7 @@ int main(){
         glfwPollEvents();
     }
     
-    if(vulkan_deleteVulkan(&instance, &physicalDevice)){
+    if(vulkan_deleteVulkan(&instance, &device)){
         fprintf(stderr, "Error deleting vulkan\n");
         assert(0 && "Error deleting all vulkan");
     }
