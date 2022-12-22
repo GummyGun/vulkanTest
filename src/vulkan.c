@@ -5,21 +5,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
 /*------------------defines------------------*/
 #define VULKAN_MAX_LAYER_NAME 64
 
 /*------------------prototipes------------------*/
 
-//int32_t vulkan_initVulkan(VkInstance *instance, VkDevice *device, VkQueue *graphicsQueue);
+//int32_t vulkan_initVulkan(VkInstance *instance, VkDevice *device, VkQueue *graphicsQueue, VkSurfaceKHR *surface, GLFWwindow *window);
 //int32_t vulkan_createInstance(VkInstance *instance);
+int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, GLFWwindow *window);
 //int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance);
 //int32_t vulkan_createLogicalDevice(VkDevice *device, VkQueue *graphicsQueue, VkInstance instance, VkPhysicalDevice physicalDevice);
 
 //deletion functions
 
-//int32_t vulkan_deleteVulkan(VkInstance *instance, VkDevice *device);
-//int32_t vulkan_deleteInstance(VkInstance *instance);
 //void vulkan_deleteLogicalDevice(VkDevice *device);
+void vulkan_deleteSurface(VkInstance *instance, VkSurfaceKHR *surface);
+//void vulkan_deleteInstance(VkInstance *instance);
+//void vulkan_deleteVulkan(VkInstance *instance, VkSurfaceKHR *surface, VkDevice *device);
 
 //statics
 
@@ -39,18 +44,20 @@ static void s_freePhysicalDevices(VkPhysicalDevice **PDs);
 
 static void s_getPhysicalDeviceQueueFamilies(VkQueueFamilyProperties **queueProperties, uint32_t *queuePropertiesCount, VkPhysicalDevice physicalDevice);
 static int32_t s_getQueueFamiliesIndex(int32_t *index, const VkQueueFamilyProperties *queueProperties, uint32_t queuePropertiesCount);
-
 static void s_freePhysicalDeviceQueueFamilies(VkQueueFamilyProperties **queueProperties);
 
 /*------------------implementations------------------*/
 
-int32_t 
-vulkan_initVulkan(VkInstance *instance, VkDevice *device, VkQueue *graphicsQueue){
+int32_t
+vulkan_initVulkan(VkInstance *instance, VkDevice *device, VkQueue *graphicsQueue, VkSurfaceKHR *surface, GLFWwindow *window){
     VkPhysicalDevice physicalDevice;
     
     if(vulkan_createInstance(instance)){
         fprintf(stderr, "Error creating instance\n");
         return 1;
+    }
+    if(vulkan_createSurface(surface, *instance, window)){
+        fprintf(stderr, "Erro");
     }
     if(vulkan_selectPhysicalDevice(&physicalDevice, *instance)){
         fprintf(stderr, "Error chossing physical device\n");
@@ -64,15 +71,11 @@ vulkan_initVulkan(VkInstance *instance, VkDevice *device, VkQueue *graphicsQueue
     return 0;
 }
 
-int32_t 
-vulkan_deleteVulkan(VkInstance *instance, VkDevice *device){
+void 
+vulkan_deleteVulkan(VkInstance *instance, VkSurfaceKHR *surface, VkDevice *device){
     vulkan_deleteLogicalDevice(device);
-    
-    if(vulkan_deleteInstance(instance)){
-        fprintf(stderr, "Error deleting instance\n");
-        return 1;
-    }
-    return 0;
+    vulkan_deleteSurface(instance, surface);
+    vulkan_deleteInstance(instance);
 }
 
 int32_t 
@@ -149,12 +152,29 @@ vulkan_createInstance(VkInstance *instance){
 }
 
 
-int32_t 
+void 
 vulkan_deleteInstance(VkInstance *instance){
     printf("deleting the instance\n");
     vkDestroyInstance(*instance, NULL);
     *instance = (VkInstance){0};
+}
+
+int32_t
+vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, GLFWwindow *window){
+    VkResult result;
+    printf("creating surface\n");
+    if((result = glfwCreateWindowSurface(instance, window, NULL, surface)) != VK_SUCCESS){
+        fprintf(stderr, "Error creating the surface %d\n", result);
+        return 1;
+    }
     return 0;
+}
+
+void
+vulkan_deleteSurface(VkInstance *instance, VkSurfaceKHR *surface){
+    printf("deleting the surface\n");
+    vkDestroySurfaceKHR(*instance, *surface, NULL);
+    *surface = (VkSurfaceKHR){0};
 }
 
 int32_t 
@@ -234,6 +254,7 @@ vulkan_createLogicalDevice(VkDevice *device, VkQueue *graphicsQueue, VkInstance 
 void
 vulkan_deleteLogicalDevice(VkDevice *device){
     vkDestroyDevice(*device, NULL);
+    *device = (VkDevice){0};
 }
 
 //static methods

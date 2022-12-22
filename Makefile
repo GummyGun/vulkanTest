@@ -18,6 +18,7 @@ all_DEPS = $(addprefix $(DEP)/, $(files:.c=.d))
 compilerFlags = -c -O3 -m64
 linkerFlags = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
 
+
 all: $(all_DEPS) $(all_OBJS) 
 	$(CC) $(all_OBJS) $(linkerFlags) -o $(BLD)/$(EXE)
 
@@ -27,7 +28,7 @@ $(OBJ)/%.o: $(SRC)/%.c
 
 $(DEP)/%.d: $(SRC)/%.c
 	$(CC) $^ -M \
-	$(inc_paths)\
+	$(inc_paths) \
 	> $(DEP)/$(basename $(notdir $@)).d
 
 $(EXE):
@@ -39,4 +40,4 @@ clean:
 	rm $(DEP)/*
 	rm $(BLD)/$(EXE)
 
-include $(DEPS)
+include $(DEP)/*.d

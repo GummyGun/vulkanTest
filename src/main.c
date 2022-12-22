@@ -12,29 +12,28 @@ int main(){
     VkInstance instance;
     VkDevice device;
     VkQueue graphicsQueue;
+    VkSurfaceKHR surface;
     
-    struct window *window;
+    struct window_window window;
     
     if(window_createWindow(&window, 300, 300, "hola")){
-        printf("[Window] error creating the window\n");
-        exit(0);
+        fprintf(stderr, "[Window] error creating the window\n");
+        assert(0 && "Error creating window");
     }
     
-    if(vulkan_initVulkan(&instance, &device, &graphicsQueue)){
+    if(vulkan_initVulkan(&instance, &device, &graphicsQueue, &surface, window.window)){
         fprintf(stderr, "Error creating vulkan\n");
         assert(0 && "Error creating vulkan");
     }
     
-    while(!window_closeWindow(window)){
+    while(!window_closeWindowEvent(&window)){
         glfwPollEvents();
     }
     
     printf("------------------------------------------------\n------------------------------------------------\n");
     
-    if(vulkan_deleteVulkan(&instance, &device)){
-        fprintf(stderr, "Error deleting vulkan\n");
-        assert(0 && "Error deleting all vulkan");
-    }
+    vulkan_deleteVulkan(&instance, &surface, &device);
+    window_deleteWindow(&window);
     
     printf("Bye bye\n");
     
