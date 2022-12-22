@@ -3,9 +3,6 @@
 #include <unistd.h>
 #include <assert.h>
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 #include "window.h"
 #include "vulkan.h"
 
@@ -14,6 +11,7 @@ int main(){
     
     VkInstance instance;
     VkDevice device;
+    VkQueue graphicsQueue;
     
     struct window *window;
     
@@ -22,7 +20,7 @@ int main(){
         exit(0);
     }
     
-    if(vulkan_initVulkan(&instance, &device)){
+    if(vulkan_initVulkan(&instance, &device, &graphicsQueue)){
         fprintf(stderr, "Error creating vulkan\n");
         assert(0 && "Error creating vulkan");
     }
@@ -31,11 +29,13 @@ int main(){
         glfwPollEvents();
     }
     
+    printf("------------------------------------------------\n------------------------------------------------\n");
+    
     if(vulkan_deleteVulkan(&instance, &device)){
         fprintf(stderr, "Error deleting vulkan\n");
         assert(0 && "Error deleting all vulkan");
     }
     
-    printf("adios\n");
+    printf("Bye bye\n");
     
 }
