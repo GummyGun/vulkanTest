@@ -6,10 +6,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+//structures
+
 struct window_window{
     GLFWwindow *window;
     int32_t width, height;
 };
+
+//function prototypes
 
 int32_t window_createWindow(struct window_window *windowParam, int32_t widthParam, int32_t heightParam, int8_t *nameParam);
 int32_t window_closeWindowEvent(struct window_window *windowParam);

@@ -6,8 +6,12 @@
 #include "window.h"
 #include "vulkan.h"
 
+
+
 int main(){
     printf("Startup\n");
+    
+    struct vulkan_graphicsStruct vulkanStruct = {0};
     
     VkInstance instance;
     VkDevice device;
@@ -21,7 +25,7 @@ int main(){
         assert(0 && "Error creating window");
     }
     
-    if(vulkan_initVulkan(&instance, &device, &graphicsQueue, &surface, window.window)){
+    if(vulkan_initVulkan(&vulkanStruct, window.window)){
         fprintf(stderr, "Error creating vulkan\n");
         assert(0 && "Error creating vulkan");
     }
@@ -32,7 +36,7 @@ int main(){
     
     printf("------------------------------------------------\n------------------------------------------------\n");
     
-    vulkan_deleteVulkan(&instance, &surface, &device);
+    vulkan_deleteVulkan(&vulkanStruct);
     window_deleteWindow(&window);
     
     printf("Bye bye\n");

@@ -13,18 +13,18 @@
 
 /*------------------prototipes------------------*/
 
-//int32_t vulkan_initVulkan(VkInstance *instance, VkDevice *device, VkQueue *graphicsQueue, VkSurfaceKHR *surface, GLFWwindow *window);
+//int32_t vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, GLFWwindow *window);
 //int32_t vulkan_createInstance(VkInstance *instance);
-int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, GLFWwindow *window);
+//int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, GLFWwindow *window);
 //int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance);
-//int32_t vulkan_createLogicalDevice(VkDevice *device, VkQueue *graphicsQueue, VkInstance instance, VkPhysicalDevice physicalDevice);
+//int32_t vulkan_createLogicalDevice(VkDevice *device, VkQueue *graphicsQueue, VkInstance instance, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
 
 //deletion functions
 
 //void vulkan_deleteLogicalDevice(VkDevice *device);
-void vulkan_deleteSurface(VkInstance *instance, VkSurfaceKHR *surface);
+//void vulkan_deleteSurface(VkInstance *instance, VkSurfaceKHR *surface);
 //void vulkan_deleteInstance(VkInstance *instance);
-//void vulkan_deleteVulkan(VkInstance *instance, VkSurfaceKHR *surface, VkDevice *device);
+//void vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket);
 
 //statics
 
@@ -37,8 +37,8 @@ static void s_freeLayers(VkLayerProperties **layers);
 
 
 static int32_t s_getPhysicalDevices(VkPhysicalDevice **PDs, uint32_t *PDsCount, VkInstance instance);
-static int32_t s_evaluatePhysicalDevices(VkPhysicalDevice *physicalDevice, const VkPhysicalDevice *PDs, uint32_t PDsCount);
-static int32_t s_ratePhysicalDevice(VkPhysicalDevice physicalDevice);
+static int32_t s_evaluatePhysicalDevices(VkPhysicalDevice *physicalDevice, VkPhysicalDevice *PDs, uint32_t PDsCount);
+static int32_t s_ratePhysicalDevice(VkPhysicalDevice *physicalDevice);
 static void s_freePhysicalDevices(VkPhysicalDevice **PDs);
 
 
@@ -49,21 +49,21 @@ static void s_freePhysicalDeviceQueueFamilies(VkQueueFamilyProperties **queuePro
 /*------------------implementations------------------*/
 
 int32_t
-vulkan_initVulkan(VkInstance *instance, VkDevice *device, VkQueue *graphicsQueue, VkSurfaceKHR *surface, GLFWwindow *window){
+vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, GLFWwindow *window){
     VkPhysicalDevice physicalDevice;
     
-    if(vulkan_createInstance(instance)){
+    if(vulkan_createInstance(&(graphicsPacket->instance))){
         fprintf(stderr, "Error creating instance\n");
         return 1;
     }
-    if(vulkan_createSurface(surface, *instance, window)){
-        fprintf(stderr, "Erro");
+    if(vulkan_createSurface(&(graphicsPacket->surface), (graphicsPacket->instance), window)){
+        fprintf(stderr, "Error creating the surface\n");
     }
-    if(vulkan_selectPhysicalDevice(&physicalDevice, *instance)){
+    if(vulkan_selectPhysicalDevice(&(graphicsPacket->physicalDevice), (graphicsPacket->instance))){
         fprintf(stderr, "Error chossing physical device\n");
         return 1;
     }
-    if(vulkan_createLogicalDevice(device, graphicsQueue, *instance, physicalDevice)){
+    if(vulkan_createLogicalDevice(&(graphicsPacket->device), &(graphicsPacket->queues.graphicsQueue), (graphicsPacket->instance), (graphicsPacket->physicalDevice), (graphicsPacket->surface))){
         fprintf(stderr, "Error creating logical device\n");
         return 1;
     }
@@ -71,11 +71,11 @@ vulkan_initVulkan(VkInstance *instance, VkDevice *device, VkQueue *graphicsQueue
     return 0;
 }
 
-void 
-vulkan_deleteVulkan(VkInstance *instance, VkSurfaceKHR *surface, VkDevice *device){
-    vulkan_deleteLogicalDevice(device);
-    vulkan_deleteSurface(instance, surface);
-    vulkan_deleteInstance(instance);
+void
+vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket){
+    vulkan_deleteLogicalDevice(&(graphicsPacket->device));
+    vulkan_deleteSurface(&(graphicsPacket->instance), &(graphicsPacket->surface));
+    vulkan_deleteInstance(&(graphicsPacket->instance));
 }
 
 int32_t 
@@ -200,7 +200,7 @@ vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instanc
 }
 
 int32_t
-vulkan_createLogicalDevice(VkDevice *device, VkQueue *graphicsQueue, VkInstance instance, VkPhysicalDevice physicalDevice){
+vulkan_createLogicalDevice(VkDevice *device, VkQueue *graphicsQueue, VkInstance instance, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface){
     VkResult result;
     
     VkQueueFamilyProperties *queueProperties;
@@ -322,10 +322,10 @@ s_getPhysicalDevices(VkPhysicalDevice **PDs, uint32_t *PDsCount, VkInstance inst
 
 static
 int32_t
-s_evaluatePhysicalDevices(VkPhysicalDevice *physicalDevice, const VkPhysicalDevice *PDs, uint32_t PDsCount){
+s_evaluatePhysicalDevices(VkPhysicalDevice *physicalDevice, VkPhysicalDevice *PDs, uint32_t PDsCount){
     int32_t suitableGPU=1;
     for(int iter=0; iter<PDsCount; iter++){
-        if(!s_ratePhysicalDevice(*(PDs+iter))){
+        if(!s_ratePhysicalDevice(PDs+iter)){
             *physicalDevice=*(PDs+iter);
             suitableGPU=0;
         }
@@ -335,11 +335,11 @@ s_evaluatePhysicalDevices(VkPhysicalDevice *physicalDevice, const VkPhysicalDevi
 
 static
 int32_t
-s_ratePhysicalDevice(VkPhysicalDevice physicalDevice){
+s_ratePhysicalDevice(VkPhysicalDevice *physicalDevice){
     VkPhysicalDeviceProperties deviceProperties;
     VkPhysicalDeviceFeatures deviceFeatures;
-    vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-    vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+    vkGetPhysicalDeviceProperties(*physicalDevice, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(*physicalDevice, &deviceFeatures);
     
     printf("%s\n", deviceProperties.deviceName);
     
