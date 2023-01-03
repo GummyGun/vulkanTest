@@ -30,18 +30,22 @@ struct vulkan_swapChainSupportDetails{
 
 /*------------------prototipes------------------*/
 
+/* instance -> surface -> physicalDevice -> device -> Swapchain */
+
 //int32_t vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, GLFWwindow *window);
 //int32_t vulkan_createInstance(VkInstance *instance);
 //int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, GLFWwindow *window);
 //int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
-//int32_t vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+//int32_t vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+//int32_t vulkan_createSwapchain(VkSwapchainKHR *swapChain, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device);
 
 //deletion functions
 
 //void vulkan_deleteLogicalDevice(VkDevice *device);
-//void vulkan_deleteSurface(VkInstance *instance, VkSurfaceKHR *surface);
+//void vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
 //void vulkan_deleteInstance(VkInstance *instance);
 //void vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket);
+//void vulkan_deleteSwapchain(VkSwapchainKHR *swapChain);
 
 //statics
 
@@ -58,21 +62,22 @@ static void s_freeLayers(VkLayerProperties **layers);
 
 static void s_getPhysicalDevices(VkPhysicalDevice **PDs, uint32_t *PDsCount, VkInstance instance);
 static int32_t s_evaluatePhysicalDevices(VkPhysicalDevice *physicalDevice, VkPhysicalDevice *PDs, uint32_t PDsCount, VkSurfaceKHR surface);
-static int32_t s_ratePhysicalDevice(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+static int32_t s_ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 static void s_freePhysicalDevices(VkPhysicalDevice **PDs);
 
 
-static int32_t s_getQueueFamiliesIndices(struct vulkan_queueIndices *queueIndices, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+static int32_t s_getQueueFamiliesIndices(struct vulkan_queueIndices *queueIndices, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 static void s_getQueueFamiliesProperties(VkQueueFamilyProperties **queueProperties, uint32_t *queuePropertiesCount, VkPhysicalDevice physicalDevice);
-static int32_t s_evaluateQueueFamiliesProperties(struct vulkan_queueIndices *queueIndicesArg, const VkQueueFamilyProperties *queueProperties, uint32_t queuePropertiesCount, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+static int32_t s_evaluateQueueFamiliesProperties(struct vulkan_queueIndices *queueIndicesArg, const VkQueueFamilyProperties *queueProperties, uint32_t queuePropertiesCount, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 static void s_freeQueueFamiliesProperties(VkQueueFamilyProperties **queueProperties);
 
 static void s_getDeviceExtentionProperties(VkExtensionProperties **extensionProperties, uint32_t *extensionPropertiesCount, VkPhysicalDevice physicalDevice);
 static int32_t s_evaluateEnabledDeviceExtentionProperties(const char *const *enabledExtensionNames, uint32_t enabledExtensionNamesCount, VkExtensionProperties *extensionProperties, uint32_t extensionPropertiesCount);
 static void s_freeDeviceExtentionProperties(VkExtensionProperties **extensionProperties);
 
-static int32_t s_getSwapChainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
-static void s_freeSwapChainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport);
+static int32_t s_evaluateSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+static int32_t s_getSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+static void s_freeSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport);
 
 /*------------------    globals    ------------------*/
 
@@ -103,8 +108,12 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, GLFWwindow *wind
         fprintf(stderr, "Error: Chossing physical device\n");
         return 1;
     }
-    if(vulkan_createLogicalDevice(&(graphicsPacket->device), &(graphicsPacket->queuesHandles), (graphicsPacket->instance), (graphicsPacket->physicalDevice), (graphicsPacket->surface))){
+    if(vulkan_createLogicalDevice(&(graphicsPacket->device), &(graphicsPacket->queuesHandles), (graphicsPacket->instance), (graphicsPacket->surface), (graphicsPacket->physicalDevice))){
         fprintf(stderr, "Error: Creating logical device\n");
+        return 1;
+    }
+    if(vulkan_createSwapchain(&(graphicsPacket->swapchain), (graphicsPacket->surface), (graphicsPacket->physicalDevice), (graphicsPacket->device))){
+        fprintf(stderr, "Error: Creating swap chain\n");
         return 1;
     }
     
@@ -114,7 +123,7 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, GLFWwindow *wind
 void
 vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket){
     vulkan_deleteLogicalDevice(&(graphicsPacket->device));
-    vulkan_deleteSurface(&(graphicsPacket->instance), &(graphicsPacket->surface));
+    vulkan_deleteSurface(&(graphicsPacket->surface), graphicsPacket->instance);
     vulkan_deleteInstance(&(graphicsPacket->instance));
 }
 
@@ -216,9 +225,9 @@ vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, GLFWwindow *win
 }
 
 void
-vulkan_deleteSurface(VkInstance *instance, VkSurfaceKHR *surface){
+vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance){
     printf("deleting the surface\n");
-    vkDestroySurfaceKHR(*instance, *surface, NULL);
+    vkDestroySurfaceKHR(instance, *surface, NULL);
     *surface = (VkSurfaceKHR){0};
 }
 
@@ -248,12 +257,12 @@ vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instanc
 }
 
 int32_t
-vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface){
+vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     VkResult result;
     
     struct vulkan_queueIndices queueIndices;
     
-    if(s_getQueueFamiliesIndices(&queueIndices, physicalDevice, surface)){
+    if(s_getQueueFamiliesIndices(&queueIndices, surface, physicalDevice)){
         fprintf(stderr, "Error: The requiered queues are not supported\n");
         return 1;
     }
@@ -305,7 +314,17 @@ vulkan_deleteLogicalDevice(VkDevice *device){
     *device = (VkDevice){0};
 }
 
-//static methods
+int32_t
+vulkan_createSwapchain(VkSwapchainKHR *swapChain, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device){
+    struct vulkan_swapChainSupportDetails swapChainDetails = {0};
+    s_getSwapchainSupport(&swapChainDetails, surface, physicalDevice);
+    printf("se le hizo fetch\n");
+    
+    return 1;
+    
+}
+
+/* ----------------------- static methods ----------------------- */
 
 static
 int32_t
@@ -378,7 +397,7 @@ int32_t
 s_evaluatePhysicalDevices(VkPhysicalDevice *physicalDevice, VkPhysicalDevice *PDs, uint32_t PDsCount, VkSurfaceKHR surface){
     int32_t suitableGPU=1;
     for(int iter=0; iter<PDsCount; iter++){
-        if(!s_ratePhysicalDevice(*(PDs+iter), surface)){
+        if(!s_ratePhysicalDevice(surface, *(PDs+iter))){
             *physicalDevice=*(PDs+iter);
             suitableGPU=0;
         }
@@ -388,7 +407,7 @@ s_evaluatePhysicalDevices(VkPhysicalDevice *physicalDevice, VkPhysicalDevice *PD
 
 static
 int32_t
-s_ratePhysicalDevice(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface){
+s_ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     int32_t result;
     VkPhysicalDeviceProperties deviceProperties;
     VkPhysicalDeviceFeatures deviceFeatures;
@@ -397,7 +416,7 @@ s_ratePhysicalDevice(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface){
     printf("%s\n", deviceProperties.deviceName);
     
     struct vulkan_queueIndices queueIndices;
-    if(s_getQueueFamiliesIndices(&queueIndices, physicalDevice, surface)){
+    if(s_getQueueFamiliesIndices(&queueIndices, surface, physicalDevice)){
         fprintf(stderr, "Error: Validating queues\n");
         return 1;
     }
@@ -412,6 +431,7 @@ s_ratePhysicalDevice(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface){
         fprintf(stderr, "Error: No swap chain support\n");
         return 1;
     }else{
+        s_evaluateSwapchainSupport(NULL, surface, physicalDevice);
         printf("swap chain supported\n");
     }
     return 0;
@@ -426,13 +446,13 @@ s_freePhysicalDevices(VkPhysicalDevice **PDs){
 
 static 
 int32_t 
-s_getQueueFamiliesIndices(struct vulkan_queueIndices *queueIndices, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface){
+s_getQueueFamiliesIndices(struct vulkan_queueIndices *queueIndices, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     int32_t result;
     VkQueueFamilyProperties *queueProperties;
     uint32_t queuePropertiesCount;
     s_getQueueFamiliesProperties(&queueProperties, &queuePropertiesCount, physicalDevice);
     
-    result = s_evaluateQueueFamiliesProperties(queueIndices, queueProperties, queuePropertiesCount, physicalDevice, surface);
+    result = s_evaluateQueueFamiliesProperties(queueIndices, queueProperties, queuePropertiesCount, surface, physicalDevice);
     s_freeQueueFamiliesProperties(&queueProperties);
     if(result){
         fprintf(stderr, "Error: Not all required queues were found\n");
@@ -451,7 +471,7 @@ s_getQueueFamiliesProperties(VkQueueFamilyProperties **queueProperties, uint32_t
 
 static
 int32_t 
-s_evaluateQueueFamiliesProperties(struct vulkan_queueIndices *queueIndicesArg, const VkQueueFamilyProperties *queueProperties, uint32_t queuePropertiesCount, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface){
+s_evaluateQueueFamiliesProperties(struct vulkan_queueIndices *queueIndicesArg, const VkQueueFamilyProperties *queueProperties, uint32_t queuePropertiesCount, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     int32_t foundQueueBitmask = 0;
     struct vulkan_queueIndices queueIndices = {-1, -1};
     //printf("-------=-=-=-=-=-=-= %d\n", queuePropertiesCount);
@@ -516,17 +536,55 @@ s_evaluateEnabledDeviceExtentionProperties(const char *const *enabledExtensionNa
     return !found;
 }
 
+//if first parameter is NULL it will only check for numbers
 static
 int32_t
-s_getSwapChainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface){
+s_evaluateSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
+    VkSurfaceCapabilitiesKHR capabilitiesTmp;
+    VkSurfaceCapabilitiesKHR *capabilitiesHolder;
+    
+    int32_t surfacePresentModesCountTmp;
+    int32_t *surfacePresentModesCountHolder;
+    
+    int32_t surfaceFormatsCountTmp;
+    int32_t *surfaceFormatsCountHolder;
+    
+    if(swapChainSupport){
+        capabilitiesHolder = &(swapChainSupport->capabilities);
+        surfacePresentModesCountHolder = &(swapChainSupport->surfacePresentModesCount);
+        surfaceFormatsCountHolder = &(swapChainSupport->surfaceFormatsCount);
+    }else{
+        capabilitiesHolder = &capabilitiesTmp;
+        surfacePresentModesCountHolder = &surfacePresentModesCountTmp;
+        surfaceFormatsCountHolder = &surfaceFormatsCountTmp;
+    }
+    
+    if((vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, capabilitiesHolder)) != VK_SUCCESS){
+        return 1;
+    }
+    
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, surfacePresentModesCountHolder, NULL);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, surfaceFormatsCountHolder, NULL);
+    
+    printf("%d %d\n", *surfacePresentModesCountHolder, *surfaceFormatsCountHolder);
+    if(!*surfacePresentModesCountHolder || !*surfaceFormatsCountHolder){
+        
+        return 1;
+    } 
+    
+    return 0;
+}
+
+static
+int32_t
+s_getSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     swapChainSupport->surfaceFormats = NULL;
     swapChainSupport->surfacePresentModes = NULL;
     
-    if((vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &(swapChainSupport->capabilities))) != VK_SUCCESS){
+    if(s_evaluateSwapchainSupport(swapChainSupport, surface, physicalDevice)){
         return 1;
-    };
+    }
     
-    vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &(swapChainSupport->surfaceFormatsCount), NULL);
     if(swapChainSupport->surfaceFormatsCount){
         swapChainSupport->surfaceFormats = malloc(swapChainSupport->surfaceFormatsCount*sizeof(VkSurfaceFormatKHR));
         if(!(swapChainSupport->surfaceFormats)){
@@ -535,7 +593,6 @@ s_getSwapChainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, V
         vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &(swapChainSupport->surfaceFormatsCount), swapChainSupport->surfaceFormats);
     }
     
-    vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &(swapChainSupport->surfacePresentModesCount), NULL);
     if(swapChainSupport->surfaceFormatsCount){
         swapChainSupport->surfacePresentModes = malloc(swapChainSupport->surfacePresentModesCount*sizeof(VkPresentModeKHR));
         if(!(swapChainSupport->surfacePresentModes)){
@@ -544,12 +601,12 @@ s_getSwapChainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, V
         vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &(swapChainSupport->surfacePresentModesCount), swapChainSupport->surfacePresentModes);
     }
     
-    return !(swapChainSupport->surfaceFormatsCount && swapChainSupport->surfacePresentModes);
+    return 0;
 }
 
 static
 void
-s_freeSwapChainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport){
+s_freeSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport){
     free(swapChainSupport->surfaceFormats);
     free(swapChainSupport->surfacePresentModes);
     swapChainSupport->surfaceFormats = NULL;

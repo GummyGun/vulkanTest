@@ -36,9 +36,9 @@ $(EXE):
 
 .PHONY:clean
 clean: 
-	rm $(OBJ)/*
-	rm $(DEP)/*
-	rm $(BLD)/$(EXE)
+	rm -f $(OBJ)/*
+	rm -f $(DEP)/*
+	rm -f $(BLD)/$(EXE)
 
 -include $(DEP)/*
 
