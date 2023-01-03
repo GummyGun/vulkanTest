@@ -9,8 +9,9 @@
 
 //structures
 
-struct vulkan_queues{
+struct vulkan_queueHandles{
     VkQueue graphicsQueue;
+    VkQueue presentQueue;
 };
 
 struct vulkan_graphicsStruct{
@@ -18,17 +19,16 @@ struct vulkan_graphicsStruct{
     VkSurfaceKHR surface;
     VkPhysicalDevice physicalDevice;
     VkDevice device;
-    struct vulkan_queues queues;
+    struct vulkan_queueHandles queuesHandles;
 };
 
 //function prototypes
 
-//VkInstance *instance, VkDevice *device, VkQueue *graphicsQueue, VkSurfaceKHR *surface
 int32_t vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, GLFWwindow *window);
 int32_t vulkan_createInstance(VkInstance *instance);
 int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, GLFWwindow *window);
-int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance);
-int32_t vulkan_createLogicalDevice(VkDevice *device, VkQueue *graphicsQueue, VkInstance instance, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
+int32_t vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
 
 //deletion functions
 void vulkan_deleteLogicalDevice(VkDevice *device);

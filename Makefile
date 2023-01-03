@@ -40,4 +40,5 @@ clean:
 	rm $(DEP)/*
 	rm $(BLD)/$(EXE)
 
-include $(DEP)/*.d
+-include $(DEP)/*
+

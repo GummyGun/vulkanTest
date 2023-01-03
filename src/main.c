@@ -13,12 +13,7 @@ int main(){
     
     struct vulkan_graphicsStruct vulkanStruct = {0};
     
-    VkInstance instance;
-    VkDevice device;
-    VkQueue graphicsQueue;
-    VkSurfaceKHR surface;
-    
-    struct window_window window;
+    struct window_window window = {0};
     
     if(window_createWindow(&window, 300, 300, "hola")){
         fprintf(stderr, "[Window] error creating the window\n");
@@ -26,7 +21,7 @@ int main(){
     }
     
     if(vulkan_initVulkan(&vulkanStruct, window.window)){
-        fprintf(stderr, "Error creating vulkan\n");
+        fprintf(stderr, "Error: creating vulkan\n");
         assert(0 && "Error creating vulkan");
     }
     
