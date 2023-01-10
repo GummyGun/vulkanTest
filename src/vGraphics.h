@@ -8,10 +8,14 @@
 
 //structures
 
+struct vGraph_pipeline{
+    VkShaderModule vertShaderModule;
+    VkShaderModule fragShaderModule;
+};
+
 //functions
 
-int32_t vGraph_createPipeline();
-
+int32_t vGraph_createPipeline(struct vulkan_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline);
 
 
 #endif

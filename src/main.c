@@ -12,9 +12,9 @@
 int main(){
     printf("Startup\n");
     
-    struct vulkan_graphicsStruct vulkanStruct = {0};
-    
-    struct window_window window = {0};
+    struct window_window window = {};
+    struct vulkan_graphicsStruct vulkanStruct = {};
+    struct vGraph_pipeline vulkanPipeline = {};
     
     if(window_createWindow(&window, 300, 300, "vulkanTest")){
         fprintf(stderr, "[Window] error creating the window\n");
@@ -26,7 +26,7 @@ int main(){
         assert(0 && "Error creating vulkan");
     }
     
-    if(vGraph_createPipeline()){
+    if(vGraph_createPipeline(&vulkanStruct, &vulkanPipeline)){
         fprintf(stderr, "Error: creating pipeline\n");
         assert(0 && "Error creating pipeline");
     }

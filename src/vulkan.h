@@ -40,6 +40,7 @@ struct vulkan_graphicsStruct{
     
     struct vulkan_imageDetails imageArray;
     struct vulkan_imageViewDetails imageViewArray;
+    
 };
 
 //function prototypes
