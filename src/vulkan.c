@@ -20,7 +20,7 @@ struct vulkan_queueIndices{
     int32_t presentQueue;
 };
 
-struct vulkan_swapChainSupportDetails{
+struct vulkan_swapchainSupportDetails{
     VkSurfaceCapabilitiesKHR surfaceCapabilities;
     uint32_t surfaceFormatsCount;
     VkSurfaceFormatKHR *surfaceFormats;
@@ -30,22 +30,25 @@ struct vulkan_swapChainSupportDetails{
 
 /*------------------prototipes------------------*/
 
-/* instance -> surface -> physicalDevice -> device -> Swapchain */
+/* window ->instance -> surface -> physicalDevice -> device -> Queue -> swapchain -> swapchainDetails */
 
 //int32_t vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, GLFWwindow *window);
 //int32_t vulkan_createInstance(VkInstance *instance);
 //int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, GLFWwindow *window);
 //int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
 //int32_t vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
-//int32_t vulkan_createSwapchain(VkSwapchainKHR *swapChain, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device);
+//int32_t vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *imageDetails, struct vulkan_swapchainDetails *swapchainDetails, GLFWwindow *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device);
+//int32_t vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, const struct vulkan_imageDetails *const restrict imageArray, restrict VkDevice device, const VkFormat *restrict const swapchainImageFormat);
+
 
 //deletion functions
 
+//void vulkan_deleteImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, VkDevice device);
+//void vulkan_deleteSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *imageArray, VkDevice device);
 //void vulkan_deleteLogicalDevice(VkDevice *device);
 //void vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
 //void vulkan_deleteInstance(VkInstance *instance);
 //void vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket);
-//void vulkan_deleteSwapchain(VkSwapchainKHR *swapChain);
 
 //statics
 
@@ -75,13 +78,16 @@ static int32_t s_getDeviceExtentionProperties(VkExtensionProperties **extensionP
 static int32_t s_evaluateEnabledDeviceExtentionProperties(const char *const *enabledExtensionNames, uint32_t enabledExtensionNamesCount, VkExtensionProperties *extensionProperties, uint32_t extensionPropertiesCount);
 static void s_freeDeviceExtentionProperties(VkExtensionProperties **extensionProperties);
 
-static int32_t s_evaluateSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
-static int32_t s_getSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
-static void s_freeSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport);
+static int32_t s_evaluateSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+static int32_t s_getSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+static void s_freeSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport);
 
-static VkSurfaceFormatKHR s_evaluateSwapSurfaceFormat(const VkSurfaceFormatKHR *surfaceFormats, int32_t surfaceFormatsCount);
-static VkPresentModeKHR s_evaluateSwapPresentMode(const VkPresentModeKHR *presentModes, int32_t presentModesCount);
-static VkExtent2D s_evaluateSwapExtent(const VkSurfaceCapabilitiesKHR surfaceCapabilities);
+static VkSurfaceFormatKHR s_evaluateSurfaceFormats(const VkSurfaceFormatKHR *surfaceFormats, int32_t surfaceFormatsCount);
+static VkPresentModeKHR s_evaluatePresentModes(const VkPresentModeKHR *presentModes, int32_t presentModesCount);
+static VkExtent2D s_evaluateSwapExtent(const VkSurfaceCapabilitiesKHR *surfaceCapabilities, GLFWwindow *window);
+
+static int32_t s_getSwapchainImages(struct vulkan_imageDetails *imageArray, VkDevice device, VkSwapchainKHR swapchain);
+static void s_deleteSwapchainImages(struct vulkan_imageDetails *restrict imageDetails);
 
 
 /*------------------    globals    ------------------*/
@@ -117,8 +123,12 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, GLFWwindow *wind
         fprintf(stderr, "Error: Creating logical device\n");
         return 1;
     }
-    if(vulkan_createSwapchain(&(graphicsPacket->swapchain), (graphicsPacket->surface), (graphicsPacket->physicalDevice), (graphicsPacket->device))){
+    if(vulkan_createSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->imageArray), &(graphicsPacket->swapchainDetails), window, (graphicsPacket->surface), (graphicsPacket->physicalDevice), (graphicsPacket->device))){
         fprintf(stderr, "Error: Creating swap chain\n");
+        return 1;
+    }
+    if(vulkan_createImageViews(&(graphicsPacket->imageViewArray), &(graphicsPacket->imageArray), (graphicsPacket->device), &(graphicsPacket->swapchainDetails.imageFormat))){
+        fprintf(stderr, "Error: creating image views\n");
         return 1;
     }
     
@@ -127,6 +137,8 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, GLFWwindow *wind
 
 void
 vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket){
+    vulkan_deleteImageViews(&(graphicsPacket->imageViewArray), graphicsPacket->device);
+    vulkan_deleteSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->imageArray), graphicsPacket->device);
     vulkan_deleteLogicalDevice(&(graphicsPacket->device));
     vulkan_deleteSurface(&(graphicsPacket->surface), graphicsPacket->instance);
     vulkan_deleteInstance(&(graphicsPacket->instance));
@@ -135,7 +147,7 @@ vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket){
 int32_t 
 vulkan_createInstance(VkInstance *instance){
     VkApplicationInfo appInfo={};
-    VkInstanceCreateInfo createInfo={};
+    VkInstanceCreateInfo imageViewCreateInfo={};
     VkResult vulkanResult;
     int32_t result;
     
@@ -146,8 +158,8 @@ vulkan_createInstance(VkInstance *instance){
     appInfo.engineVersion = VK_MAKE_VERSION(1, 1, 0);
     appInfo.apiVersion = VK_API_VERSION_1_1;
     
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &appInfo;
+    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    imageViewCreateInfo.pApplicationInfo = &appInfo;
     
     uint32_t glfwExtensionsCount = 0;
     const char **glfwExtensions;
@@ -164,8 +176,8 @@ vulkan_createInstance(VkInstance *instance){
         
     }
     
-    createInfo.enabledExtensionCount = glfwExtensionsCount;
-    createInfo.ppEnabledExtensionNames = glfwExtensions;
+    imageViewCreateInfo.enabledExtensionCount = glfwExtensionsCount;
+    imageViewCreateInfo.ppEnabledExtensionNames = glfwExtensions;
     
     VkExtensionProperties *extensions;
     uint32_t extensionsCount;
@@ -200,11 +212,10 @@ vulkan_createInstance(VkInstance *instance){
         return 1;
     }
     
-    createInfo.enabledLayerCount = enabledLayerNamesCount;
-    createInfo.ppEnabledLayerNames = enabledLayerNames;
+    imageViewCreateInfo.enabledLayerCount = enabledLayerNamesCount;
+    imageViewCreateInfo.ppEnabledLayerNames = enabledLayerNames;
     
-    vulkanResult = vkCreateInstance(&createInfo, NULL, instance);
-    if(vulkanResult != VK_SUCCESS){
+    if((vulkanResult = vkCreateInstance(&imageViewCreateInfo, NULL, instance)) != VK_SUCCESS){
         fprintf(stderr,"Error: Instance creation error %d\n", vulkanResult);
         return 1;
     }
@@ -323,22 +334,141 @@ vulkan_deleteLogicalDevice(VkDevice *device){
 }
 
 int32_t
-vulkan_createSwapchain(VkSwapchainKHR *swapChain, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device){
-    struct vulkan_swapChainSupportDetails swapChainDetails = {0};
-    s_getSwapchainSupport(&swapChainDetails, surface, physicalDevice);
-    //printf("%d %d\n", swapChainDetails.surfaceFormatsCount, swapChainDetails.presentModesCount);
+vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *imageDetails, struct vulkan_swapchainDetails *swapchainDetails, GLFWwindow *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device){
+    struct vulkan_swapchainSupportDetails swapchainSupportDetails = {0};
+    s_getSwapchainSupport(&swapchainSupportDetails, surface, physicalDevice);
+    //printf("%d %d\n", swapchainSupportDetails.surfaceFormatsCount, swapchainSupportDetails.presentModesCount);
     
     VkSurfaceFormatKHR surfaceFormat;
-    VkPresentModeKHR presentationMode;
-    VkExtent2D swapExtention;
+    VkPresentModeKHR presentMode;
+    VkExtent2D swapExtent;
     
-    surfaceFormat = s_evaluateSwapSurfaceFormat(swapChainDetails.surfaceFormats, swapChainDetails.surfaceFormatsCount);
-    presentationMode = s_evaluateSwapPresentMode(swapChainDetails.presentModes, swapChainDetails.presentModesCount);
-    swapExtention = s_evaluateSwapExtent(swapChainDetails.surfaceCapabilities);
+    surfaceFormat = s_evaluateSurfaceFormats(swapchainSupportDetails.surfaceFormats, swapchainSupportDetails.surfaceFormatsCount);
+    presentMode = s_evaluatePresentModes(swapchainSupportDetails.presentModes, swapchainSupportDetails.presentModesCount);
+    swapExtent = s_evaluateSwapExtent(&(swapchainSupportDetails.surfaceCapabilities), window);
     
-    s_freeSwapchainSupport(&swapChainDetails);
-    return 1;
+    uint32_t imageCount = swapchainSupportDetails.surfaceCapabilities.minImageCount+1;
     
+    if(swapchainSupportDetails.surfaceCapabilities.maxImageCount > 0 && imageCount > swapchainSupportDetails.surfaceCapabilities.maxImageCount){
+        imageCount = swapchainSupportDetails.surfaceCapabilities.maxImageCount;
+    }
+    
+    VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
+    swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchainCreateInfo.surface = surface;
+    
+    swapchainCreateInfo.minImageCount = imageCount;
+    swapchainCreateInfo.imageFormat = surfaceFormat.format;
+    swapchainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
+    swapchainCreateInfo.imageExtent = swapExtent;
+    swapchainCreateInfo.imageArrayLayers = 1;
+    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    
+    
+    struct vulkan_queueIndices queueIndices;
+    if(s_getQueueFamiliesIndices(&queueIndices, surface, physicalDevice)){
+        fprintf(stderr, "Error: Validating queues\n");
+        return 1;
+    }
+    
+    int32_t queueFamilyIndices[] = {queueIndices.presentQueue, queueIndices.graphicsQueue};
+    
+    if(queueIndices.graphicsQueue == queueIndices.presentQueue){
+        swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swapchainCreateInfo.queueFamilyIndexCount = 0;
+        swapchainCreateInfo.pQueueFamilyIndices = NULL;
+    }else{
+        swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swapchainCreateInfo.queueFamilyIndexCount = 2;
+        swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+    }
+    
+    swapchainCreateInfo.preTransform = swapchainSupportDetails.surfaceCapabilities.currentTransform; 
+    
+    swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    
+    swapchainCreateInfo.presentMode = presentMode;
+    swapchainCreateInfo.clipped = VK_TRUE;
+    
+    swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+    
+    if((vkCreateSwapchainKHR(device, &swapchainCreateInfo, NULL, swapchain)) != VK_SUCCESS){
+        fprintf(stderr, "Error: Creating swap chain\n");
+        return 1;
+    }
+    
+    if(s_getSwapchainImages(imageDetails, device, *swapchain)){
+        fprintf(stderr, "Error: getting swapchain images\n");
+        return 1;
+    }
+    swapchainDetails->imageFormat = surfaceFormat.format;
+    swapchainDetails->extent = swapExtent;
+    
+    s_freeSwapchainSupport(&swapchainSupportDetails);
+    return 0;
+    
+}
+
+void 
+vulkan_deleteSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *imageArray, VkDevice device){
+    s_deleteSwapchainImages(imageArray);
+    vkDestroySwapchainKHR(device, *swapchain, NULL);
+}
+
+
+/*
+vulkan_createImageViews(struct vulkan_imageViewDetails *imageViewArray, struct vulkan_imageDetails *imageArray, VkDevice device, VkFormat *swapchainImageFormat);
+*/
+int32_t
+vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, const struct vulkan_imageDetails *const restrict imageArray, restrict VkDevice device, const VkFormat *restrict const swapchainImageFormat){
+    imageViewArray->imageViews = malloc(imageArray->count*sizeof(VkImageView));
+    if(!imageViewArray->imageViews){
+        fprintf(stderr, "Error: malloc failed\n");
+        return 1;
+    }
+    
+    imageViewArray->count = imageArray->count;
+    
+    VkImageViewCreateInfo imageViewCreateInfo = {};
+    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCreateInfo.format = *swapchainImageFormat;
+    
+    
+    imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    
+    imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+    imageViewCreateInfo.subresourceRange.levelCount = 1;
+    imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewCreateInfo.subresourceRange.layerCount = 1;
+    
+    for(int32_t iter=0; iter<imageArray->count; iter++){
+        imageViewCreateInfo.image = *((imageArray->images)+iter);
+        if(vkCreateImageView(device, &imageViewCreateInfo, NULL, ((imageViewArray->imageViews)+iter))){
+            free(imageViewArray->imageViews);
+            imageViewArray->imageViews = NULL;
+            fprintf(stderr, "Error: error creating %d view\n", iter);
+            return 1;
+        }
+    }
+    
+}
+
+/*
+void vulkan_deleteImageViews(struct vulkan_imageViewDetails *imageViewArray, VkDevice device);
+*/
+void
+vulkan_deleteImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, VkDevice device){
+    for(int32_t iter=0; iter<imageViewArray->count; iter++){
+        vkDestroyImageView(device, *((imageViewArray->imageViews)+iter), NULL);
+    }
+    free(imageViewArray->imageViews);
+    imageViewArray->imageViews = NULL;
 }
 
 /* ----------------------- static methods ----------------------- */
@@ -574,7 +704,7 @@ s_evaluateEnabledDeviceExtentionProperties(const char *const *enabledExtensionNa
 //if first parameter is NULL it will only check for numbers
 static
 int32_t
-s_evaluateSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
+s_evaluateSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     VkSurfaceCapabilitiesKHR capabilitiesTmp;
     VkSurfaceCapabilitiesKHR *capabilitiesHolder;
     
@@ -584,10 +714,10 @@ s_evaluateSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSuppo
     int32_t surfaceFormatsCountTmp;
     int32_t *surfaceFormatsCountHolder;
     
-    if(swapChainSupport){
-        capabilitiesHolder = &(swapChainSupport->surfaceCapabilities);
-        presentModesCountHolder = &(swapChainSupport->presentModesCount);
-        surfaceFormatsCountHolder = &(swapChainSupport->surfaceFormatsCount);
+    if(swapchainSupport){
+        capabilitiesHolder = &(swapchainSupport->surfaceCapabilities);
+        presentModesCountHolder = &(swapchainSupport->presentModesCount);
+        surfaceFormatsCountHolder = &(swapchainSupport->surfaceFormatsCount);
     }else{
         capabilitiesHolder = &capabilitiesTmp;
         presentModesCountHolder = &presentModesCountTmp;
@@ -611,28 +741,28 @@ s_evaluateSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSuppo
 
 static
 int32_t
-s_getSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
-    swapChainSupport->surfaceFormats = NULL;
-    swapChainSupport->presentModes = NULL;
+s_getSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
+    swapchainSupport->surfaceFormats = NULL;
+    swapchainSupport->presentModes = NULL;
     
-    if(s_evaluateSwapchainSupport(swapChainSupport, surface, physicalDevice)){
+    if(s_evaluateSwapchainSupport(swapchainSupport, surface, physicalDevice)){
         return 1;
     }
     
-    if(swapChainSupport->surfaceFormatsCount){
-        swapChainSupport->surfaceFormats = malloc(swapChainSupport->surfaceFormatsCount*sizeof(VkSurfaceFormatKHR));
-        if(!(swapChainSupport->surfaceFormats)){
+    if(swapchainSupport->surfaceFormatsCount){
+        swapchainSupport->surfaceFormats = malloc(swapchainSupport->surfaceFormatsCount*sizeof(VkSurfaceFormatKHR));
+        if(!(swapchainSupport->surfaceFormats)){
             return 1;
         }
-        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &(swapChainSupport->surfaceFormatsCount), swapChainSupport->surfaceFormats);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &(swapchainSupport->surfaceFormatsCount), swapchainSupport->surfaceFormats);
     }
     
-    if(swapChainSupport->surfaceFormatsCount){
-        swapChainSupport->presentModes = malloc(swapChainSupport->presentModesCount*sizeof(VkPresentModeKHR));
-        if(!(swapChainSupport->presentModes)){
+    if(swapchainSupport->surfaceFormatsCount){
+        swapchainSupport->presentModes = malloc(swapchainSupport->presentModesCount*sizeof(VkPresentModeKHR));
+        if(!(swapchainSupport->presentModes)){
             return 1;
         }
-        vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &(swapChainSupport->presentModesCount), swapChainSupport->presentModes);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &(swapchainSupport->presentModesCount), swapchainSupport->presentModes);
     }
     
     return 0;
@@ -640,32 +770,86 @@ s_getSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport, V
 
 static
 void
-s_freeSwapchainSupport(struct vulkan_swapChainSupportDetails *swapChainSupport){
-    free(swapChainSupport->surfaceFormats);
-    free(swapChainSupport->presentModes);
-    swapChainSupport->surfaceFormats = NULL;
-    swapChainSupport->presentModes = NULL;
+s_freeSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport){
+    free(swapchainSupport->surfaceFormats);
+    free(swapchainSupport->presentModes);
+    swapchainSupport->surfaceFormats = NULL;
+    swapchainSupport->presentModes = NULL;
 }
 
 
 static
 VkSurfaceFormatKHR 
-s_evaluateSwapSurfaceFormat(const VkSurfaceFormatKHR *surfaceFormats, int32_t surfaceFormatsCount){
-    printf("they are %d surface Formats\n", surfaceFormatsCount);
+s_evaluateSurfaceFormats(const VkSurfaceFormatKHR *surfaceFormats, int32_t surfaceFormatsCount){
+    for(int32_t iter=0; iter<surfaceFormatsCount; iter++){
+        if(((surfaceFormats+iter)->format == VK_FORMAT_B8G8R8A8_SRGB) && ((surfaceFormats+iter)->colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)){
+            printf(" * : Prefered Surface Formats\n");
+            return *(surfaceFormats+iter);
+        }
+    }
+    printf("   : Prefered Surface Formats\n");
     return *surfaceFormats;
 }
 
 static
 VkPresentModeKHR
-s_evaluateSwapPresentMode(const VkPresentModeKHR *presentModes, int32_t presentModesCount){
-    printf("they are %d swap Modes\n", presentModesCount);
-    return *presentModes;
+s_evaluatePresentModes(const VkPresentModeKHR *presentModes, int32_t presentModesCount){
+    VkPresentModeKHR best;
+    for(int32_t iter=0; iter<presentModesCount; iter++){
+        if(*(presentModes+iter) == VK_PRESENT_MODE_MAILBOX_KHR){
+            printf(" * : Prefered present mode\n");
+            return *(presentModes+iter);
+        }
+    }
+    printf(" 0 : Prefered present mode\n");
+    return VK_PRESENT_MODE_FIFO_KHR;
 }
 
 static
 VkExtent2D
-s_evaluateSwapExtent(const VkSurfaceCapabilitiesKHR surfaceCapabilities){
-    printf("evaluationSwapExtent\n");
-    VkExtent2D ret = {};
-    return ret;
+s_evaluateSwapExtent(const VkSurfaceCapabilitiesKHR *surfaceCapabilities, GLFWwindow *window){
+    if(0 && surfaceCapabilities->currentExtent.width != 0xFFFFFFFF){
+        printf(" * : Swap Extent of size %d %d\n", surfaceCapabilities->currentExtent.width, surfaceCapabilities->currentExtent.height);
+        return surfaceCapabilities->currentExtent;
+    }else{
+        int32_t width, height;
+        window_getFrameBufferSize(window, &width, &height);
+        
+        if(width < surfaceCapabilities->minImageExtent.width){
+            width = surfaceCapabilities->minImageExtent.width;
+        }else if(width > surfaceCapabilities->maxImageExtent.width){
+            width = surfaceCapabilities->maxImageExtent.width;
+        }
+        
+        if(height < surfaceCapabilities->minImageExtent.height){
+            height = surfaceCapabilities->minImageExtent.height;
+        }else if(height > surfaceCapabilities->maxImageExtent.height){
+            height = surfaceCapabilities->maxImageExtent.height;
+        }
+        
+        printf(" / : Swap Extent of size %d %d\n", width, height);
+        VkExtent2D ret = (VkExtent2D){.width=width, .height=height};
+        return ret;
+    }
 }
+
+static
+int32_t
+s_getSwapchainImages(struct vulkan_imageDetails *imageArray, VkDevice device, VkSwapchainKHR swapchain){
+    vkGetSwapchainImagesKHR(device, swapchain, &(imageArray->count), NULL);
+    imageArray->images = malloc(imageArray->count*sizeof(VkImage));
+    if(!imageArray->images){
+        fprintf(stderr, "images length %d %p\n", imageArray->count, imageArray->images);
+        return 1;
+    }
+    vkGetSwapchainImagesKHR(device, swapchain, &(imageArray->count), imageArray->images);
+    return 0;
+}
+
+static
+void
+s_deleteSwapchainImages(struct vulkan_imageDetails *restrict imageDetails){
+    free(imageDetails->images);
+    imageDetails->images = NULL;
+}
+

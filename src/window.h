@@ -19,5 +19,6 @@ int32_t window_createWindow(struct window_window *windowParam, int32_t widthPara
 int32_t window_closeWindowEvent(struct window_window *windowParam);
 int32_t window_deleteWindow(struct window_window *windowParam);
 int32_t window_getRequiredInsanceExtentions(const char ***extensions, uint32_t *extensionsCount);
+int32_t window_getFrameBufferSize(GLFWwindow *window, int32_t *bufferWidth, int32_t *bufferHeight);
 
 #endif
