@@ -20,7 +20,7 @@ int main(){
         assert(0 && "Error creating window");
     }
     
-    if(vulkan_initVulkan(&vulkanStruct, window.window)){
+    if(vulkan_initVulkan(&vulkanStruct, &window)){
         fprintf(stderr, "Error: creating vulkan\n");
         assert(0 && "Error creating vulkan");
     }
