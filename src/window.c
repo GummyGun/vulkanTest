@@ -37,14 +37,12 @@ window_deleteWindow(struct window_window *windowParam){
 int32_t 
 window_getRequiredInstanceExtentions(const char ***extensions, uint32_t *extensionsCount){
     *extensions = glfwGetRequiredInstanceExtensions(extensionsCount);
-    
     return 0;
 }
 
 int32_t
 window_getFrameBufferSize(struct window_window *window, int32_t *bufferWidth, int32_t *bufferHeight){
     glfwGetFramebufferSize(window->window, bufferWidth, bufferHeight);
-    
     return 0;
 }
 

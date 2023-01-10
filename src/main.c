@@ -5,6 +5,7 @@
 
 #include "window.h"
 #include "vulkan.h"
+#include "vGraphics.h"
 
 
 
@@ -15,7 +16,7 @@ int main(){
     
     struct window_window window = {0};
     
-    if(window_createWindow(&window, 300, 300, "hola")){
+    if(window_createWindow(&window, 300, 300, "vulkanTest")){
         fprintf(stderr, "[Window] error creating the window\n");
         assert(0 && "Error creating window");
     }
@@ -23,6 +24,11 @@ int main(){
     if(vulkan_initVulkan(&vulkanStruct, &window)){
         fprintf(stderr, "Error: creating vulkan\n");
         assert(0 && "Error creating vulkan");
+    }
+    
+    if(vGraph_createPipeline()){
+        fprintf(stderr, "Error: creating pipeline\n");
+        assert(0 && "Error creating pipeline");
     }
     
     while(!window_closeWindowEvent(&window)){

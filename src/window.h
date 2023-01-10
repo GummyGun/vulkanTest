@@ -21,6 +21,6 @@ int32_t window_deleteWindow(struct window_window *windowParam);
 int32_t window_getRequiredInstanceExtentions(const char ***extensions, uint32_t *extensionsCount);
 int32_t window_getFrameBufferSize(struct window_window *window, int32_t *bufferWidth, int32_t *bufferHeight);
 
-int32_t window_createSurface(VkSurfaceKHR *surface, struct window_window *windowParam, VkInstance instance);
+VkResult window_createSurface(VkSurfaceKHR *surface, struct window_window *windowParam, VkInstance instance);
 
 #endif

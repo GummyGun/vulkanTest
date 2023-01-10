@@ -11,7 +11,7 @@ SPV = res/shaders
 rpath =  $(shell pwd)
 
 
-files = main.c window.c vulkan.c
+files = main.c window.c vulkan.c vGraphics.c
 all_OBJS = $(addprefix $(OBJ)/, $(files:.c=.o))
 all_DEPS = $(addprefix $(DEP)/, $(files:.c=.d))
 
@@ -23,13 +23,14 @@ all: $(all_DEPS) $(all_OBJS)
 	$(CC) $(all_OBJS) $(linkerFlags) -o $(BLD)/$(EXE)
 
 $(OBJ)/%.o: $(SRC)/%.c
-	$(CC) $(compilerFlags) -o $(OBJ)/$(basename $(notdir $@)).o $^ -c \
+	$(CC) $(compilerFlags) -o $@ $< -c \
 	$(inc_paths)
 
 $(DEP)/%.d: $(SRC)/%.c
-	$(CC) $^ -M \
+	$(CC) $^ -MM \
+	-MT $(OBJ)/$(basename $(notdir $@)).o \
 	$(inc_paths) \
-	> $(DEP)/$(basename $(notdir $@)).d
+	-MF $@
 
 $(EXE):
 	ln $(BLD)/$(EXE) . -s

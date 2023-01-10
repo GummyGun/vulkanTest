@@ -36,7 +36,7 @@ struct vulkan_swapchainSupportDetails{
 //int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
 //int32_t vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 //int32_t vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device);
-//int32_t vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, const struct vulkan_imageDetails *const restrict imageArray, restrict VkDevice device, const VkFormat *restrict const swapchainImageFormat);
+//int32_t vulkan_createImageViews(struct vulkan_imageViewDetails *imageViewArray, const struct vulkan_imageDetails *imageArray, VkDevice device, const VkFormat *swapchainImageFormat);
 
 
 //deletion functions
@@ -49,8 +49,6 @@ struct vulkan_swapchainSupportDetails{
 //void vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket);
 
 //statics
-
-
 
 
 static int32_t s_getExtensions(VkExtensionProperties **extensions, uint32_t *extensionsCount);
@@ -103,7 +101,7 @@ const uint32_t enabledDeviceExtensionsCount=sizeof(enabledDeviceExtensions)/size
 
 
 int32_t
-vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, struct window_window *window){
+vulkan_initVulkan(struct vulkan_graphicsStruct *restrict const graphicsPacket, struct window_window *restrict const window){
     VkPhysicalDevice physicalDevice;
     
     if(vulkan_createInstance(&(graphicsPacket->instance))){
@@ -414,9 +412,6 @@ vulkan_deleteSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *im
 }
 
 
-/*
-vulkan_createImageViews(struct vulkan_imageViewDetails *imageViewArray, struct vulkan_imageDetails *imageArray, VkDevice device, VkFormat *swapchainImageFormat);
-*/
 int32_t
 vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, const struct vulkan_imageDetails *const restrict imageArray, restrict VkDevice device, const VkFormat *restrict const swapchainImageFormat){
     imageViewArray->imageViews = malloc(imageArray->count*sizeof(VkImageView));
@@ -461,7 +456,7 @@ vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray,
 void vulkan_deleteImageViews(struct vulkan_imageViewDetails *imageViewArray, VkDevice device);
 */
 void
-vulkan_deleteImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, VkDevice device){
+vulkan_deleteImageViews(struct vulkan_imageViewDetails *restrict const imageViewArray, restrict VkDevice device){
     for(int32_t iter=0; iter<imageViewArray->count; iter++){
         vkDestroyImageView(device, *((imageViewArray->imageViews)+iter), NULL);
     }
