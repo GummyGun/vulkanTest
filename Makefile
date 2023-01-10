@@ -20,7 +20,7 @@ linkerFlags = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
 
 
 all: $(all_DEPS) $(all_OBJS) 
-	$(CC) $(all_OBJS) $(linkerFlags) -o $(BLD)/$(EXE)
+	$(CC) $(all_OBJS) $(linkerFlags) -o $(BLD)/$(EXE).out
 
 $(OBJ)/%.o: $(SRC)/%.c
 	$(CC) $(compilerFlags) -o $@ $< -c \
@@ -33,7 +33,7 @@ $(DEP)/%.d: $(SRC)/%.c
 	-MF $@
 
 $(EXE):
-	ln $(BLD)/$(EXE) . -s
+	ln $(BLD)/$(EXE).out ./$(EXE) -s
 
 .PHONY:clean
 clean: 
