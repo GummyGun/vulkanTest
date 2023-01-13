@@ -10,7 +10,6 @@ inc_paths =
 SPV = res/shaders
 rpath =  $(shell pwd)
 
-
 files = main.c window.c vulkan.c vGraphics.c utils.c
 all_OBJS = $(addprefix $(OBJ)/, $(files:.c=.o))
 all_DEPS = $(addprefix $(DEP)/, $(files:.c=.d))

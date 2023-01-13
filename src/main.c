@@ -26,7 +26,7 @@ int main(){
         assert(0 && "Error creating vulkan");
     }
     
-    if(vGraph_createPipeline(&vulkanStruct, &vulkanPipeline)){
+    if(vGraph_createPipeline(&vulkanPipeline, &vulkanStruct)){
         fprintf(stderr, "Error: creating pipeline\n");
         assert(0 && "Error creating pipeline");
     }
@@ -35,8 +35,9 @@ int main(){
         glfwPollEvents();
     }
     
-    printf("------------------------------------------------\n------------------------------------------------\n");
+    printf("------------------------------------------------\n\n------------------------------------------------\n");
     
+    vGraph_deletePipeline(&vulkanPipeline, &vulkanStruct);
     vulkan_deleteVulkan(&vulkanStruct);
     window_deleteWindow(&window);
     
