@@ -46,7 +46,7 @@ struct vulkan_swapchainSupportDetails{
 //void vulkan_deleteLogicalDevice(VkDevice *device);
 //void vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
 //void vulkan_deleteInstance(VkInstance *instance);
-//void vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket);
+//void vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket);
 
 //statics
 
@@ -136,7 +136,7 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *restrict const graphicsPacket, s
 }
 
 void
-vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket){
+vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket){
     vulkan_deleteImageViews(&(graphicsPacket->imageViewArray), graphicsPacket->device);
     vulkan_deleteSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->imageArray), graphicsPacket->device);
     vulkan_deleteLogicalDevice(&(graphicsPacket->device));
@@ -257,7 +257,7 @@ vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instanc
     }
     
     if(physicalDevicesCount==0){
-        fprintf(stderr, "Error: no GPU with vulkan suport was found\n");
+        fprintf(stderr, "Error: No GPU with vulkan suport was found\n");
         return 1;
     }
     
@@ -576,6 +576,13 @@ s_ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
         return 1;
     }
     
+#ifdef DEBUG
+    printf("%d\n", extensionPropertiesCount);
+    for(int32_t iter=0; iter<extensionPropertiesCount; iter++){
+        printf("%s\n", (extensionProperties+iter)->extensionName);
+    }
+#endif
+    
     result = s_evaluateEnabledDeviceExtentionProperties(enabledDeviceExtensions, enabledDeviceExtensionsCount, extensionProperties, extensionPropertiesCount);
     s_freeDeviceExtentionProperties(&extensionProperties);
     if(result){
@@ -695,6 +702,7 @@ s_evaluateEnabledDeviceExtentionProperties(const char *const *enabledExtensionNa
                 //printf("se encontro el swapchain\n");
                 found=1;
             }
+            
             //printf("%d %d %s\n", iter, iterAvExt, (extensionProperties+iterAvExt)->extensionName);
         }
     }
@@ -839,7 +847,6 @@ s_getSwapchainImages(struct vulkan_imageDetails *imageArray, VkDevice device, Vk
     vkGetSwapchainImagesKHR(device, swapchain, &(imageArray->count), NULL);
     imageArray->images = malloc(imageArray->count*sizeof(VkImage));
     if(!imageArray->images){
-        fprintf(stderr, "images length %d %p\n", imageArray->count, imageArray->images);
         return 1;
     }
     vkGetSwapchainImagesKHR(device, swapchain, &(imageArray->count), imageArray->images);

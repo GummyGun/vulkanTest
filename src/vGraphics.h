@@ -11,16 +11,14 @@
 struct vGraph_pipeline{
     VkShaderModule vertShaderModule;
     VkShaderModule fragShaderModule;
+    VkRenderPass renderPass;
     VkPipelineLayout layout;
-    
+    VkPipeline graphicsPipeline;
 };
 
 //functions
 
-int32_t vGraph_createPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
-int32_t vGraph_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device);
-
-void vGraph_deletePipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device);
-void vGraph_deletePipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
+int32_t vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
+void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 
 #endif

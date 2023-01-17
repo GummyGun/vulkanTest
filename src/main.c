@@ -16,7 +16,7 @@ int main(){
     struct vulkan_graphicsStruct vulkanStruct = {};
     struct vGraph_pipeline vulkanPipeline = {};
     
-    if(window_createWindow(&window, 300, 300, "vulkanTest")){
+    if(window_initWindow(&window, 300, 300, "vulkanTest")){
         fprintf(stderr, "[Window] error creating the window\n");
         assert(0 && "Error creating window");
     }
@@ -26,7 +26,7 @@ int main(){
         assert(0 && "Error creating vulkan");
     }
     
-    if(vGraph_createPipeline(&vulkanPipeline, &vulkanStruct)){
+    if(vGraph_initPipeline(&vulkanPipeline, &vulkanStruct)){
         fprintf(stderr, "Error: creating pipeline\n");
         assert(0 && "Error creating pipeline");
     }
@@ -38,9 +38,9 @@ int main(){
     
     printf("------------------------------------------------\n\n------------------------------------------------\n");
     
-    vGraph_deletePipeline(&vulkanPipeline, &vulkanStruct);
-    vulkan_deleteVulkan(&vulkanStruct);
-    window_deleteWindow(&window);
+    vGraph_destroyPipeline(&vulkanPipeline, &vulkanStruct);
+    vulkan_destroyVulkan(&vulkanStruct);
+    window_destroyWindow(&window);
     
     printf("Bye bye\n");
     

@@ -59,6 +59,6 @@ void vulkan_deleteSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetail
 void vulkan_deleteLogicalDevice(VkDevice *device);
 void vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
 void vulkan_deleteInstance(VkInstance *instance);
-void vulkan_deleteVulkan(struct vulkan_graphicsStruct *graphicsPacket);
+void vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket);
 
 #endif

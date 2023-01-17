@@ -14,48 +14,59 @@
 
 /*------------------prototipes------------------*/
 
-//int32_t vGraph_createPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
-//int32_t vGraph_createPipelineLayout(VkPipelineLayout **pipelineLayout, VkDevice device);
-
-//void vGraph_deletePipelineLayout(VkPipelineLayout **pipelineLayout, VkDevice device);
-//void vGraph_deletePipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device);
+//int32_t vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
+//void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 
 //statics
 
-static int32_t s_createShaderModule(VkShaderModule *shaderModule, const struct utils_file *shaderSPVFile, VkDevice device);
+static int32_t s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails);
+static void s_deletePipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device);
+
+static int32_t s_createShaderModule(VkShaderModule *shaderModule, const char *shaderFileName, VkDevice device);
 static void s_deleteShaderModule(VkShaderModule *shaderModule, VkDevice device);
 
+static int32_t s_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device);
+static void s_deletePipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device);
 
+static int32_t s_createRenderPass(VkRenderPass *renderPass, VkDevice device, const VkFormat *const swapchainImageFormat);
+static void s_deleteRenderPass(VkRenderPass *renderPass, VkDevice device);
 
 /*------------------    globals    ------------------*/
 
 /*------------------implementations------------------*/
 
 int32_t
-vGraph_createPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
-    printf("Creating Pipeline\n");
-    struct utils_file vertShaderSPV, fragShaderSPV;
-    if(utils_openFile(&vertShaderSPV, "res/shaders/shader.vert.spv")){
+vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
+    if(s_createPipeline(graphicsPipeline, graphicsPacket->device, &(graphicsPacket->swapchainDetails))){
+        fprintf(stderr, "Error: creating pipeline\n");
         return 1;
     }
-    if(utils_openFile(&fragShaderSPV, "res/shaders/shader.frag.spv")){
-        return 1;
-    }
-    if(s_createShaderModule(&(graphicsPipeline->vertShaderModule), &vertShaderSPV, (graphicsPacket->device))){
-        return 1;
-    };
-    
-    if(s_createShaderModule(&(graphicsPipeline->fragShaderModule), &fragShaderSPV, (graphicsPacket->device))){
-        return 1;
-    };
-    
-    if(utils_closeFile(&vertShaderSPV)){
-        return 1;
-    }
-    if(utils_closeFile(&fragShaderSPV)){
-        return 1;
-    }
+    return 0;
+}
 
+void
+vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
+    s_deletePipeline(graphicsPipeline, (graphicsPacket->device));
+}
+
+//statics
+
+static
+int32_t
+s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails){
+    printf("Creating Pipeline\n");
+    if(s_createRenderPass(&(graphicsPipeline->renderPass), device, &(swapchainDetails->imageFormat))){
+        fprintf(stderr, "Error: creating renderPass\n");
+        return 1;
+    }
+    
+    if(s_createShaderModule(&(graphicsPipeline->vertShaderModule), "res/shaders/shader.vert.spv", device)){
+        return 1;
+    };
+    if(s_createShaderModule(&(graphicsPipeline->fragShaderModule), "res/shaders/shader.frag.spv", device)){
+        return 1;
+    };
+    
     VkPipelineShaderStageCreateInfo shaderStages[2] = {};
     shaderStages->sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderStages->stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -90,14 +101,14 @@ vGraph_createPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_gr
     VkViewport viewport = {};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float)graphicsPacket->swapchainDetails.extent.width;
-    viewport.height = (float)graphicsPacket->swapchainDetails.extent.height;
+    viewport.width = (float)swapchainDetails->extent.width;
+    viewport.height = (float)swapchainDetails->extent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     
     VkRect2D scissor = {};
     scissor.offset = (VkOffset2D){0, 0};
-    scissor.extent = graphicsPacket->swapchainDetails.extent;
+    scissor.extent = swapchainDetails->extent;
     
     VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
     viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -152,24 +163,52 @@ vGraph_createPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_gr
     colorBlending.blendConstants[2] = 0.0f; // Optional
     colorBlending.blendConstants[3] = 0.0f; // Optional
     
-    if(vGraph_createPipelineLayout(&(graphicsPipeline->layout), graphicsPacket->device)){
+    if(s_createPipelineLayout(&(graphicsPipeline->layout), device)){
         return 1;
     }
     
+    VkGraphicsPipelineCreateInfo pipelineInfo = {};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
     
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssemblyCreateInfo;
+    pipelineInfo.pViewportState = &viewportStateCreateInfo;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = NULL; // Optional
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicStateCreateInfo;
+    
+    pipelineInfo.layout = graphicsPipeline->layout;
+    pipelineInfo.renderPass = graphicsPipeline->renderPass;
+    pipelineInfo.subpass = 0;
+    
+    if(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &(graphicsPipeline->graphicsPipeline)) != VK_SUCCESS){
+        fprintf(stderr, "Error: error creating pipeline");
+        return 1;
+    }
     return 0;
 }
 
+static
 void
-vGraph_deletePipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
+s_deletePipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device){
     printf("deleting the pipeline\n");
-    vGraph_deletePipelineLayout(&(graphicsPipeline->layout), (graphicsPacket->device));
-    s_deleteShaderModule(&(graphicsPipeline->vertShaderModule), (graphicsPacket->device));
-    s_deleteShaderModule(&(graphicsPipeline->fragShaderModule), (graphicsPacket->device));
+    
+    vkDestroyPipeline(device, graphicsPipeline->graphicsPipeline, NULL);
+    graphicsPipeline->graphicsPipeline = NULL;
+    
+    s_deletePipelineLayout(&(graphicsPipeline->layout), device);
+    s_deleteShaderModule(&(graphicsPipeline->vertShaderModule), device);
+    s_deleteShaderModule(&(graphicsPipeline->fragShaderModule), device);
+    s_deleteRenderPass(&(graphicsPipeline->renderPass), device);
 }
 
+static
 int32_t
-vGraph_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device){
+s_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device){
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.setLayoutCount = 0; // Optional
@@ -178,29 +217,34 @@ vGraph_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device){
     pipelineLayoutCreateInfo.pPushConstantRanges = NULL; // Optional
     
     if(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, NULL, pipelineLayout) != VK_SUCCESS) {
-        fprintf(stderr, "Error: creating pipeline\n");
+        fprintf(stderr, "Error: creating pipelineLayout\n");
         return 1;
     }
     return 0;
 }
 
 void
-vGraph_deletePipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device){
+s_deletePipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device){
     vkDestroyPipelineLayout(device, *pipelineLayout, NULL);
     *pipelineLayout=NULL;
 }
 
-//statics
-
 static
 int32_t
-s_createShaderModule(VkShaderModule *shaderModule, const struct utils_file *shaderSPVFile, VkDevice device){
+s_createShaderModule(VkShaderModule *shaderModule, const char *shaderFileName, VkDevice device){
+    struct utils_file shaderSPVFile;
+    if(utils_openFile(&shaderSPVFile, shaderFileName)){
+        return 1;
+    }
     VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
     shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    shaderModuleCreateInfo.codeSize = shaderSPVFile->size;
-    shaderModuleCreateInfo.pCode = (uint32_t*)(shaderSPVFile->content);
+    shaderModuleCreateInfo.codeSize = shaderSPVFile.size;
+    shaderModuleCreateInfo.pCode = (uint32_t*)(shaderSPVFile.content);
     if(vkCreateShaderModule(device, &shaderModuleCreateInfo, NULL, shaderModule)){
-        fprintf(stderr, "Error: creating shader module\n");
+        fprintf(stderr, "Error: creating shader module %s\n", shaderFileName);
+        return 1;
+    }
+    if(utils_closeFile(&shaderSPVFile)){
         return 1;
     }
     return 0;
@@ -212,3 +256,51 @@ s_deleteShaderModule(VkShaderModule *shaderModule, VkDevice device){
     vkDestroyShaderModule(device, *shaderModule, NULL);
     *shaderModule = NULL;
 }
+
+static 
+int32_t 
+s_createRenderPass(VkRenderPass *renderPass, VkDevice device, const VkFormat *const swapchainImageFormat){
+    VkAttachmentDescription colorAttachmentDescription = {};
+    colorAttachmentDescription.format = *swapchainImageFormat;
+    colorAttachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+    
+    colorAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    
+    colorAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    
+    colorAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    
+    VkAttachmentReference colorAttachmentReference = {};
+    colorAttachmentReference.attachment = 0;
+    colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentReference;
+    
+    VkRenderPassCreateInfo renderPassCreateInfo = {};
+    renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassCreateInfo.attachmentCount = 1;
+    renderPassCreateInfo.pAttachments = &colorAttachmentDescription;
+    renderPassCreateInfo.subpassCount = 1;
+    renderPassCreateInfo.pSubpasses = &subpass;
+    
+    if(vkCreateRenderPass(device, &renderPassCreateInfo, NULL, renderPass) != VK_SUCCESS) {
+        fprintf(stderr, "Error: failed to create render pass!\n");
+        return 1;
+    }
+    return 0;
+}
+
+
+static 
+void
+s_deleteRenderPass(VkRenderPass *renderPass, VkDevice device){
+    vkDestroyRenderPass(device, *renderPass, NULL);
+    *renderPass = NULL;
+}
+
