@@ -6,7 +6,7 @@
 
 //structures
 
-#ifdef WAYLAND_PROT
+#ifdef WAY_PROT
 
 #include <wayland-client.h>
 struct window_window{

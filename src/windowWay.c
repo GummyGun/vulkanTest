@@ -16,7 +16,7 @@ const uint32_t extensionsWaylandCount = sizeof(extensionsWayland)/sizeof(int8_t*
 
 
 int32_t 
-window_createWindow(struct window_window *windowParam, int32_t widthParam, int32_t heightParam, int8_t *nameParam){
+window_initWindow(struct window_window *windowParam, int32_t widthParam, int32_t heightParam, int8_t *nameParam){
     windowParam->display = wl_display_connect(NULL);
     windowParam->registry = wl_display_get_registry(windowParam->display);
     printf("%s\n", wl_compositor_interface.name);
@@ -43,7 +43,7 @@ window_closeWindowEvent(struct window_window *windowParam){
 }
 
 int32_t
-window_deleteWindow(struct window_window *windowParam){
+window_destroyWindow(struct window_window *windowParam){
     /*
     glfwDestroyWindow(windowParam->window);
     glfwTerminate();
