@@ -1,4 +1,4 @@
-target = Way
+target = X11
 
 TMP = tmps
 OBJ = $(TMP)/obj
@@ -73,7 +73,7 @@ getBld:
 	@echo "----------------------------------------------"
 
 symlink:
-	ln $(BLD)/$(EXE).out ./$(EXE) -s
+	ln $(BLD)/$(EXE).out ./$(EXE) -sf
 
 send:
 	scp $(BLD)/$(EXE).out root@$(TESTIP):~

@@ -18,19 +18,17 @@ struct window_window{
     int32_t width, height;
 };
 
-#else
-#define X_PROT
+#elif X11_PROT
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 struct window_window{
-    struct wl_display *display;
-    struct wl_registry *registry;
-    struct wl_surface *surface;
-    
-    //GLFWwindow *window;
+    GLFWwindow *window;
     int32_t width, height;
 };
+#else
+
+<<<<select a WM>>>>>>
 
 #endif
 

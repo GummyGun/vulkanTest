@@ -12,7 +12,7 @@ int32_t window_getFrameBufferSize(struct window_window *window, int32_t *bufferW
 */
 
 int32_t 
-window_createWindow(struct window_window *windowParam, int32_t widthParam, int32_t heightParam, int8_t *nameParam){
+window_initWindow(struct window_window *windowParam, int32_t widthParam, int32_t heightParam, int8_t *nameParam){
     windowParam->width=widthParam;
     windowParam->height=heightParam;
     glfwInit();
@@ -29,7 +29,7 @@ window_closeWindowEvent(struct window_window *windowParam){
 }
 
 int32_t
-window_deleteWindow(struct window_window *windowParam){
+window_destroyWindow(struct window_window *windowParam){
     glfwDestroyWindow(windowParam->window);
     glfwTerminate();
 }
