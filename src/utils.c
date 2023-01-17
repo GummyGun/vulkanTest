@@ -32,7 +32,7 @@ utils_openFile(struct utils_file *file, const char *fileName){
     struct stat fileStat;
     fstat(fileFd, &fileStat);
     file->size = fileStat.st_size;
-    printf("file: %s size %d\n", fileName, fileStat.st_size);
+    printf("file: %s size %ld\n", fileName, fileStat.st_size);
     file->content = mmap(NULL, file->size, PROT_READ, MAP_PRIVATE, fileFd, 0);
     if(file->content == MAP_FAILED){
         perror("Error: mapping memmory");

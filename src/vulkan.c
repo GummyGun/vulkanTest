@@ -110,11 +110,15 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *restrict const graphicsPacket, s
     }
     if(vulkan_createSurface(&(graphicsPacket->surface), (graphicsPacket->instance), window)){
         fprintf(stderr, "Error: Creating the surface\n");
+        return 1;
     }
     if(vulkan_selectPhysicalDevice(&(graphicsPacket->physicalDevice), (graphicsPacket->instance), (graphicsPacket)->surface)){
         fprintf(stderr, "Error: Chossing physical device\n");
         return 1;
     }
+    
+    assert(!"createInstance");
+    
     if(vulkan_createLogicalDevice(&(graphicsPacket->device), &(graphicsPacket->queuesHandles), (graphicsPacket->instance), (graphicsPacket->surface), (graphicsPacket->physicalDevice))){
         fprintf(stderr, "Error: Creating logical device\n");
         return 1;
@@ -161,7 +165,7 @@ vulkan_createInstance(VkInstance *instance){
     const char **windowExtensions;
     
     if(window_getRequiredInstanceExtentions(&windowExtensions, &windowExtensionsCount)){
-        fprintf(stderr, "Counldn't retrive extentions\n");
+        fprintf(stderr, "Error: Counldn't retrive extentions\n");
         return 1;
     }
     
@@ -169,7 +173,6 @@ vulkan_createInstance(VkInstance *instance){
     printf("Extentions required by Window Manager\n");
     for(int32_t iter=0; iter<windowExtensionsCount; iter++){
         printf("\t%s\n", *(windowExtensions+iter));
-        
     }
     
     imageViewCreateInfo.enabledExtensionCount = windowExtensionsCount;
@@ -254,7 +257,7 @@ vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instanc
     }
     
     if(physicalDevicesCount==0){
-        fprintf(stderr, "no GPU with vulkan suport was found\n");
+        fprintf(stderr, "Error: no GPU with vulkan suport was found\n");
         return 1;
     }
     
@@ -394,7 +397,7 @@ vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_swapchainDetails
     }
     
     if(s_getSwapchainImages(imageDetails, device, *swapchain)){
-        fprintf(stderr, "Error: getting swapchain images\n");
+        fprintf(stderr, "Error: Getting swapchain images\n");
         return 1;
     }
     swapchainDetails->imageFormat = surfaceFormat.format;
@@ -416,7 +419,7 @@ int32_t
 vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, const struct vulkan_imageDetails *const restrict imageArray, restrict VkDevice device, const VkFormat *restrict const swapchainImageFormat){
     imageViewArray->imageViews = malloc(imageArray->count*sizeof(VkImageView));
     if(!imageViewArray->imageViews){
-        fprintf(stderr, "Error: malloc failed\n");
+        fprintf(stderr, "Error: Malloc failed\n");
         return 1;
     }
     
@@ -445,7 +448,7 @@ vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray,
         if(vkCreateImageView(device, &imageViewCreateInfo, NULL, ((imageViewArray->imageViews)+iter))){
             free(imageViewArray->imageViews);
             imageViewArray->imageViews = NULL;
-            fprintf(stderr, "Error: error creating %d view\n", iter);
+            fprintf(stderr, "Error: Error creating %d view\n", iter);
             return 1;
         }
     }
@@ -578,10 +581,14 @@ s_ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     if(result){
         fprintf(stderr, "Error: No swap chain support\n");
         return 1;
-    }else{
-        s_evaluateSwapchainSupport(NULL, surface, physicalDevice);
-        printf("swap chain supported\n");
     }
+    
+    if(s_evaluateSwapchainSupport(NULL, surface, physicalDevice)){
+        fprintf(stderr, "Error: Not the right swapchain suport");
+        return 1;
+    }
+    
+    printf("swap chain supported\n");
     return 0;
 }
 
