@@ -69,6 +69,11 @@ window_getFrameBufferSize(struct window_window *window, int32_t *bufferWidth, in
     return 1;
 }
 
+void
+window_pollEvents(){
+    //event loop events
+}
+
 VkResult
 window_createSurface(VkSurfaceKHR *surface, struct window_window *windowParam, VkInstance instance){
     //return glfwCreateWindowSurface(instance, windowParam->window, NULL, surface);

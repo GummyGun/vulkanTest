@@ -32,8 +32,7 @@ int main(){
     }
     
     while(!window_closeWindowEvent(&window)){
-        //window_pollEvents();
-        //glfwPollEvents();
+        window_pollEvents();
     }
     
     printf("------------------------------------------------\n\n------------------------------------------------\n");
