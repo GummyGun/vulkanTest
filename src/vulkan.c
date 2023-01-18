@@ -120,6 +120,14 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *restrict const graphicsPacket, s
         fprintf(stderr, "Error: Creating logical device\n");
         return 1;
     }
+    
+    printf("instance   :%p\n", graphicsPacket->instance);
+    printf("surface    :%p\n", graphicsPacket->surface);
+    printf("device     :%p\n", graphicsPacket->device);
+    printf("physDevice :%p\n", graphicsPacket->physicalDevice);
+    
+    assert(0 && "hola");
+    
     if(vulkan_createSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->swapchainDetails), &(graphicsPacket->imageArray), window, (graphicsPacket->surface), (graphicsPacket->physicalDevice), (graphicsPacket->device))){
         fprintf(stderr, "Error: Creating swap chain\n");
         return 1;
@@ -230,7 +238,7 @@ int32_t
 vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window){
     VkResult result;
     if((result = window_createSurface(surface, window, instance)) != VK_SUCCESS){
-        fprintf(stderr, "Error: Creating the surface %d\n", result);
+        fprintf(stderr, "Error: Creating the surface Errco%d\n", result);
         return 1;
     }
     return 0;
@@ -573,6 +581,7 @@ s_ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
         return 1;
     }
     
+    
 #ifdef DEBUG
     printf("%d\n", extensionPropertiesCount);
     for(int32_t iter=0; iter<extensionPropertiesCount; iter++){
@@ -656,6 +665,7 @@ s_evaluateQueueFamiliesProperties(struct vulkan_queueIndices *queueIndicesArg, c
         }
         if(queueIndices.presentQueue != -1 && queueIndices.graphicsQueue != -1){
             *queueIndicesArg = queueIndices;
+            //printf("queue index %d %d\n", queueIndices.presentQueue, queueIndices.graphicsQueue);
             return 0;
         }
     }
