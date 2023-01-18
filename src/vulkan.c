@@ -34,7 +34,7 @@ struct vulkan_swapchainSupportDetails{
 //int32_t vulkan_createInstance(VkInstance *instance);
 //int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
 //int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
-//int32_t vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+//int32_t vulkan_createDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 //int32_t vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device);
 //int32_t vulkan_createImageViews(struct vulkan_imageViewDetails *imageViewArray, const struct vulkan_imageDetails *imageArray, VkDevice device, const VkFormat *swapchainImageFormat);
 
@@ -43,7 +43,7 @@ struct vulkan_swapchainSupportDetails{
 
 //void vulkan_deleteImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, VkDevice device);
 //void vulkan_deleteSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *imageArray, VkDevice device);
-//void vulkan_deleteLogicalDevice(VkDevice *device);
+//void vulkan_deleteDevice(VkDevice *device);
 //void vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
 //void vulkan_deleteInstance(VkInstance *instance);
 //void vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket);
@@ -116,7 +116,7 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *restrict const graphicsPacket, s
         fprintf(stderr, "Error: Chossing physical device\n");
         return 1;
     }
-    if(vulkan_createLogicalDevice(&(graphicsPacket->device), &(graphicsPacket->queuesHandles), (graphicsPacket->instance), (graphicsPacket->surface), (graphicsPacket->physicalDevice))){
+    if(vulkan_createDevice(&(graphicsPacket->device), &(graphicsPacket->queuesHandles), (graphicsPacket->instance), (graphicsPacket->surface), (graphicsPacket->physicalDevice))){
         fprintf(stderr, "Error: Creating logical device\n");
         return 1;
     }
@@ -144,7 +144,7 @@ void
 vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket){
     vulkan_deleteImageViews(&(graphicsPacket->imageViewArray), graphicsPacket->device);
     vulkan_deleteSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->imageArray), graphicsPacket->device);
-    vulkan_deleteLogicalDevice(&(graphicsPacket->device));
+    vulkan_deleteDevice(&(graphicsPacket->device));
     vulkan_deleteSurface(&(graphicsPacket->surface), graphicsPacket->instance);
     vulkan_deleteInstance(&(graphicsPacket->instance));
 }
@@ -280,7 +280,7 @@ vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instanc
 }
 
 int32_t
-vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
+vulkan_createDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     VkResult result;
     
     struct vulkan_queueIndices queueIndices;
@@ -332,7 +332,7 @@ vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHa
 }
 
 void
-vulkan_deleteLogicalDevice(VkDevice *device){
+vulkan_deleteDevice(VkDevice *device){
     vkDestroyDevice(*device, NULL);
     *device = (VkDevice){0};
 }
