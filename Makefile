@@ -28,7 +28,7 @@ defineX11Flags = -D X11_PROT
 
 compilerFlags = $(compiler$(target)Flags)
 compilerWayFlags = 
-compilerX11Flags = -O3 -m64
+compilerX11Flags = 
 
 linkerFlags = $(linker$(target)Flags)
 linkerWayFlags = -lvulkan -lpthread -lwayland-client

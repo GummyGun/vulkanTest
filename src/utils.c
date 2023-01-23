@@ -26,7 +26,7 @@ int32_t
 utils_openFile(struct utils_file *file, const char *fileName){
     int32_t fileFd;
     if((fileFd = open(fileName, O_RDONLY)) == -1){
-        perror("Error: opening file");
+        perror("Error: Opening file");
         return 1;
     }
     struct stat fileStat;
@@ -35,7 +35,7 @@ utils_openFile(struct utils_file *file, const char *fileName){
     printf("file: %s size %ld\n", fileName, fileStat.st_size);
     file->content = mmap(NULL, file->size, PROT_READ, MAP_PRIVATE, fileFd, 0);
     if(file->content == MAP_FAILED){
-        perror("Error: mapping memmory");
+        perror("Error: Mapping memmory");
         return 1;
     }
     close(fileFd);
@@ -45,7 +45,7 @@ utils_openFile(struct utils_file *file, const char *fileName){
 int32_t
 utils_closeFile(struct utils_file *file){
     if(munmap(file->content, file->size) == -1){
-        perror("Error: closing file");
+        perror("Error: Closing file");
         return 1;
     }
     *file = (struct utils_file){};

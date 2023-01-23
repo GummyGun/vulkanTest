@@ -60,6 +60,9 @@ registryListener = {
 
 int32_t 
 window_initWindow(struct window_window *windowParam, int32_t widthParam, int32_t heightParam, int8_t *nameParam){
+    windowParam->width=widthParam;
+    windowParam->height=heightParam;
+    
     windowParam->display = wl_display_connect(NULL);
     windowParam->registry = wl_display_get_registry(windowParam->display);
     
@@ -73,15 +76,6 @@ window_initWindow(struct window_window *windowParam, int32_t widthParam, int32_t
     windowParam->surface = wl_compositor_create_surface(windowParam->compositor);
     printf("surfacePtr: %p\n", windowParam->surface);
     
-    
-    /*
-    windowParam->width=widthParam;
-    windowParam->height=heightParam;
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    windowParam->window = glfwCreateWindow(widthParam, heightParam, nameParam, NULL, NULL);
-    */
     return 0;
 }
 
@@ -110,6 +104,8 @@ window_getRequiredInstanceExtentions(const char ***extensions, uint32_t *extensi
 
 int32_t
 window_getFrameBufferSize(struct window_window *window, int32_t *bufferWidth, int32_t *bufferHeight){
+    *bufferWidth = window->width;
+    *bufferHeight = window->height;
     /*
     glfwGetFramebufferSize(window->window, bufferWidth, bufferHeight);
     */

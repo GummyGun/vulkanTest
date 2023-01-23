@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /*------------------defines------------------*/
 
@@ -16,6 +17,9 @@
 
 //int32_t vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 //void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
+
+/* window ->instance -> surface -> physicalDevice -> device -> Queue -> swapchain -> swapchainDetails -> images -> imageViews */
+/* renderPass */
 
 //statics
 
@@ -31,14 +35,27 @@ static void s_deletePipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice de
 static int32_t s_createRenderPass(VkRenderPass *renderPass, VkDevice device, const VkFormat *const swapchainImageFormat);
 static void s_deleteRenderPass(VkRenderPass *renderPass, VkDevice device);
 
+static int32_t s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageViewDetails *imageViewArray, VkRenderPass renderPass);
+static void s_deleteFrameBuffer(VkRenderPass *renderPass, VkDevice device);
+
 /*------------------    globals    ------------------*/
 
 /*------------------implementations------------------*/
 
 int32_t
 vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
+    if(s_createRenderPass(&(graphicsPipeline->renderPass), graphicsPacket->device, &(graphicsPacket->swapchainDetails.imageFormat))){
+        fprintf(stderr, "Error: Creating renderPass\n");
+        return 1;
+    }
+    
     if(s_createPipeline(graphicsPipeline, graphicsPacket->device, &(graphicsPacket->swapchainDetails))){
-        fprintf(stderr, "Error: creating pipeline\n");
+        fprintf(stderr, "Error: Creating test pipeline\n");
+        return 1;
+    }
+    
+    if(s_createFrameBuffer(&(graphicsPipeline->frameBufferArray), graphicsPacket->device, &(graphicsPacket->swapchainDetails), &(graphicsPacket->imageViewArray), graphicsPipeline->renderPass)){
+        fprintf(stderr, "Error: Creating frame buffer\n");
         return 1;
     }
     return 0;
@@ -55,11 +72,6 @@ static
 int32_t
 s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails){
     printf("Creating Pipeline\n");
-    if(s_createRenderPass(&(graphicsPipeline->renderPass), device, &(swapchainDetails->imageFormat))){
-        fprintf(stderr, "Error: creating renderPass\n");
-        return 1;
-    }
-    
     if(s_createShaderModule(&(graphicsPipeline->vertShaderModule), "res/shaders/shader.vert.spv", device)){
         return 1;
     };
@@ -158,10 +170,10 @@ s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, stru
     colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &colorBlendAttachment;
-    colorBlending.blendConstants[0] = 0.0f; // Optional
-    colorBlending.blendConstants[1] = 0.0f; // Optional
-    colorBlending.blendConstants[2] = 0.0f; // Optional
-    colorBlending.blendConstants[3] = 0.0f; // Optional
+    *(colorBlending.blendConstants+0) = 0.0f; // Optional
+    *(colorBlending.blendConstants+1) = 0.0f; // Optional
+    *(colorBlending.blendConstants+2) = 0.0f; // Optional
+    *(colorBlending.blendConstants+3) = 0.0f; // Optional
     
     if(s_createPipelineLayout(&(graphicsPipeline->layout), device)){
         return 1;
@@ -186,9 +198,10 @@ s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, stru
     pipelineInfo.subpass = 0;
     
     if(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &(graphicsPipeline->graphicsPipeline)) != VK_SUCCESS){
-        fprintf(stderr, "Error: error creating pipeline");
+        fprintf(stderr, "Error: Error creating pipeline");
         return 1;
     }
+    
     return 0;
 }
 
@@ -217,7 +230,7 @@ s_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device){
     pipelineLayoutCreateInfo.pPushConstantRanges = NULL; // Optional
     
     if(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, NULL, pipelineLayout) != VK_SUCCESS) {
-        fprintf(stderr, "Error: creating pipelineLayout\n");
+        fprintf(stderr, "Error: Creating pipelineLayout\n");
         return 1;
     }
     return 0;
@@ -241,7 +254,7 @@ s_createShaderModule(VkShaderModule *shaderModule, const char *shaderFileName, V
     shaderModuleCreateInfo.codeSize = shaderSPVFile.size;
     shaderModuleCreateInfo.pCode = (uint32_t*)(shaderSPVFile.content);
     if(vkCreateShaderModule(device, &shaderModuleCreateInfo, NULL, shaderModule)){
-        fprintf(stderr, "Error: creating shader module %s\n", shaderFileName);
+        fprintf(stderr, "Error: Creating shader module %s\n", shaderFileName);
         return 1;
     }
     if(utils_closeFile(&shaderSPVFile)){
@@ -290,7 +303,7 @@ s_createRenderPass(VkRenderPass *renderPass, VkDevice device, const VkFormat *co
     renderPassCreateInfo.pSubpasses = &subpass;
     
     if(vkCreateRenderPass(device, &renderPassCreateInfo, NULL, renderPass) != VK_SUCCESS) {
-        fprintf(stderr, "Error: failed to create render pass!\n");
+        fprintf(stderr, "Error: Failed to create render pass!\n");
         return 1;
     }
     return 0;
@@ -302,5 +315,42 @@ void
 s_deleteRenderPass(VkRenderPass *renderPass, VkDevice device){
     vkDestroyRenderPass(device, *renderPass, NULL);
     *renderPass = NULL;
+}
+
+static
+int32_t
+s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageViewDetails *imageViewArray, VkRenderPass renderPass){
+    frameBufferArray->count = imageViewArray->count;
+    frameBufferArray->frameBuffers = malloc(frameBufferArray->count*sizeof(VkFramebuffer));
+    if(!frameBufferArray->frameBuffers){
+        fprintf(stderr, "Error: Malloc failed\n");
+        return 1;
+    }
+    for(int32_t iter=0; iter<imageViewArray->count; iter++){
+        VkImageView attachments[] = {*((imageViewArray->imageViews)+iter)};
+        
+        VkFramebufferCreateInfo framebufferInfo = {};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = renderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = swapchainDetails->extent.width;
+        framebufferInfo.height = swapchainDetails->extent.height;
+        framebufferInfo.layers = 1;
+        
+        if((vkCreateFramebuffer(device, &framebufferInfo, NULL, (frameBufferArray->frameBuffers)+iter)) != VK_SUCCESS){
+            return 1;
+        }
+        
+        printf("frame buffer\n");
+    }
+    
+    return 0;
+}
+
+static
+void 
+s_deleteFrameBuffer(VkRenderPass *renderPass, VkDevice device){
+    
 }
 

@@ -22,12 +22,13 @@ int main(){
     }
     
     if(vulkan_initVulkan(&vulkanStruct, &window)){
-        fprintf(stderr, "Error: creating vulkan\n");
+        fprintf(stderr, "Error: Creating vulkan\n");
         assert(0 && "Error creating vulkan");
     }
     
+    
     if(vGraph_initPipeline(&vulkanPipeline, &vulkanStruct)){
-        fprintf(stderr, "Error: creating pipeline\n");
+        fprintf(stderr, "Error: Creating pipeline\n");
         assert(0 && "Error creating pipeline");
     }
     
