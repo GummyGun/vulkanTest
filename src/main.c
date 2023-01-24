@@ -17,23 +17,27 @@ int main(){
     struct vGraph_pipeline vulkanPipeline = {};
     
     if(window_initWindow(&window, 300, 300, "vulkanTest")){
-        fprintf(stderr, "[Window] error creating the window\n");
+        fprintf(stderr, "[Window] Error: Creating the window\n");
         assert(0 && "Error creating window");
     }
     
     if(vulkan_initVulkan(&vulkanStruct, &window)){
-        fprintf(stderr, "Error: Creating vulkan\n");
+        fprintf(stderr, "[Vulkan] Error: Creating vulkan\n");
         assert(0 && "Error creating vulkan");
     }
     
     
     if(vGraph_initPipeline(&vulkanPipeline, &vulkanStruct)){
-        fprintf(stderr, "Error: Creating pipeline\n");
+        fprintf(stderr, "[vGraphics] Error: Creating pipeline\n");
         assert(0 && "Error creating pipeline");
     }
     
     while(!window_closeWindowEvent(&window)){
         window_pollEvents();
+        if(vGraph_drawFrame(&vulkanPipeline, &vulkanStruct)){
+        fprintf(stderr, "[vGraphics] Error: Drawing triangle\n");
+            assert(0 && "Error drawing triangle");
+        }
     }
     
     printf("------------------------------------------------\n\n------------------------------------------------\n");

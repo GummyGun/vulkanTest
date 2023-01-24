@@ -7,6 +7,11 @@
 #include <stdint.h>
 
 //structures
+struct vGraph_syncObjects{
+    VkSemaphore imageAvailableSemaphore;
+    VkSemaphore renderFinishedSemaphore;
+    VkFence inFlightFence;
+};
 
 struct vGraph_frameBufferDetails{
     VkFramebuffer *frameBuffers;
@@ -24,11 +29,13 @@ struct vGraph_pipeline{
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffer;
     
+    struct vGraph_syncObjects syncObjects;
 };
 
 //functions
 
 int32_t vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
+int32_t vGraph_drawFrame(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 
 #endif

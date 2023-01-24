@@ -17,6 +17,7 @@
 
 //int32_t vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 //void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
+//int32_t vGraph_drawFrame(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 
 /* window ->instance -> surface -> physicalDevice -> device -> Queue -> swapchain -> swapchainDetails -> images -> imageViews */
 /* renderPass */
@@ -44,8 +45,10 @@ static void s_deleteCommandPool();//to change
 static int32_t s_createCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommandPool commandPool);
 static void s_deleteCommandBuffer();//to change
 
-//static int32_t recordCommandBuffer(VkCommandBuffer commandBuffer, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline);
-static int32_t recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray);
+static int32_t s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);
+static void s_deleteSyncObjects();//to change
+
+static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray);
 
 
 /*------------------    globals    ------------------*/
@@ -76,12 +79,10 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_grap
         fprintf(stderr, "Error: Creating command buffer\n");
         return 1;
     }
-    /*
-    if(0){
+    if(s_createSyncObjects(&(graphicsPipeline->syncObjects), graphicsPacket->device)){
         fprintf(stderr, "Error: Creating command buffer\n");
         return 1;
     }
-    */
     return 0;
 }
 
@@ -90,7 +91,11 @@ vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_g
     s_deletePipeline(graphicsPipeline, (graphicsPacket->device));
 }
 
-//statics
+int32_t
+vGraph_drawFrame(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
+    printf("drawing traingle\n");
+    return 1;
+}
 
 static
 int32_t
@@ -417,10 +422,42 @@ s_createCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommand
     }
     return 0;
 }
+static
+int32_t
+s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
+    VkSemaphoreCreateInfo semaphoreInfo = {};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    
+    VkFenceCreateInfo fenceInfo = {};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    
+    if(vkCreateSemaphore(device, &semaphoreInfo, NULL, &(syncObjects->imageAvailableSemaphore)) != VK_SUCCESS){
+        fprintf(stderr, "Error: error creating imageAvailableSemaphore\n");
+        return 1;
+    }
+    
+    if(vkCreateSemaphore(device, &semaphoreInfo, NULL, &(syncObjects->renderFinishedSemaphore)) != VK_SUCCESS){
+        fprintf(stderr, "Error: error creating renderFinishedSemaphore\n");
+        return 1;
+    }
+    
+    if(vkCreateFence(device, &fenceInfo, NULL, &(syncObjects->inFlightFence)) != VK_SUCCESS){
+        fprintf(stderr, "Error: error creating inFlightFence\n");
+        return 1;
+    }
+    
+    return 0;
+}
+
+static
+void
+s_deleteSyncObjects(){
+    
+}
 
 static
 int32_t 
-recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray){
+s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray){
     
     VkRenderPassBeginInfo renderPassInfo = {};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -464,4 +501,8 @@ recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice 
     
     return 0;
 }
+
+
+
+
 
