@@ -8,12 +8,22 @@
 
 //structures
 
+struct vGraph_frameBufferDetails{
+    VkFramebuffer *frameBuffers;
+    int32_t count;
+};
+
 struct vGraph_pipeline{
     VkShaderModule vertShaderModule;
     VkShaderModule fragShaderModule;
     VkRenderPass renderPass;
     VkPipelineLayout layout;
     VkPipeline graphicsPipeline;
+    struct vGraph_frameBufferDetails frameBufferArray;
+    
+    VkCommandPool commandPool;
+    VkCommandBuffer commandBuffer;
+    
 };
 
 //functions

@@ -28,13 +28,13 @@ struct vulkan_swapchainSupportDetails{
 
 /*------------------prototipes------------------*/
 
-/* window ->instance -> surface -> physicalDevice -> device -> Queue -> swapchain -> swapchainDetails */
+/* window ->instance -> surface -> physicalDevice -> device -> Queue -> swapchain -> swapchainDetails -> images -> imageViews */
 
 //int32_t vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, struct window_window *window);
 //int32_t vulkan_createInstance(VkInstance *instance);
 //int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
 //int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
-//int32_t vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+//int32_t vulkan_createDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 //int32_t vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device);
 //int32_t vulkan_createImageViews(struct vulkan_imageViewDetails *imageViewArray, const struct vulkan_imageDetails *imageArray, VkDevice device, const VkFormat *swapchainImageFormat);
 
@@ -43,7 +43,7 @@ struct vulkan_swapchainSupportDetails{
 
 //void vulkan_deleteImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, VkDevice device);
 //void vulkan_deleteSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *imageArray, VkDevice device);
-//void vulkan_deleteLogicalDevice(VkDevice *device);
+//void vulkan_deleteDevice(VkDevice *device);
 //void vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
 //void vulkan_deleteInstance(VkInstance *instance);
 //void vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket);
@@ -116,7 +116,7 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *restrict const graphicsPacket, s
         fprintf(stderr, "Error: Chossing physical device\n");
         return 1;
     }
-    if(vulkan_createLogicalDevice(&(graphicsPacket->device), &(graphicsPacket->queuesHandles), (graphicsPacket->instance), (graphicsPacket->surface), (graphicsPacket->physicalDevice))){
+    if(vulkan_createDevice(&(graphicsPacket->device), &(graphicsPacket->queuesHandles), (graphicsPacket->instance), (graphicsPacket->surface), (graphicsPacket->physicalDevice))){
         fprintf(stderr, "Error: Creating logical device\n");
         return 1;
     }
@@ -125,10 +125,14 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *restrict const graphicsPacket, s
         return 1;
     }
     if(vulkan_createImageViews(&(graphicsPacket->imageViewArray), &(graphicsPacket->imageArray), (graphicsPacket->device), &(graphicsPacket->swapchainDetails.imageFormat))){
-        fprintf(stderr, "Error: creating image views\n");
+        fprintf(stderr, "Error: Creating image views\n");
         return 1;
     }
     
+    //printf("instance   :%p\n", graphicsPacket->instance);
+    //printf("surface    :%p\n", graphicsPacket->surface);
+    //printf("device     :%p\n", graphicsPacket->device);
+    //printf("physDevice :%p\n", graphicsPacket->physicalDevice);
     return 0;
 }
 
@@ -136,7 +140,7 @@ void
 vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket){
     vulkan_deleteImageViews(&(graphicsPacket->imageViewArray), graphicsPacket->device);
     vulkan_deleteSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->imageArray), graphicsPacket->device);
-    vulkan_deleteLogicalDevice(&(graphicsPacket->device));
+    vulkan_deleteDevice(&(graphicsPacket->device));
     vulkan_deleteSurface(&(graphicsPacket->surface), graphicsPacket->instance);
     vulkan_deleteInstance(&(graphicsPacket->instance));
 }
@@ -185,8 +189,8 @@ vulkan_createInstance(VkInstance *instance){
     printf("All extentions\n");
     for(int32_t iter=0; iter<extensionsCount; iter++){
         printf("\t%s\n", (extensions+iter)->extensionName);
-        
     }
+    
     s_freeExtensions(&extensions);
     
     VkLayerProperties *layers;
@@ -230,7 +234,7 @@ int32_t
 vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window){
     VkResult result;
     if((result = window_createSurface(surface, window, instance)) != VK_SUCCESS){
-        fprintf(stderr, "Error: Creating the surface %d\n", result);
+        fprintf(stderr, "Error: Creating the surface Errco%d\n", result);
         return 1;
     }
     return 0;
@@ -272,7 +276,7 @@ vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instanc
 }
 
 int32_t
-vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
+vulkan_createDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     VkResult result;
     
     struct vulkan_queueIndices queueIndices;
@@ -324,7 +328,7 @@ vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHa
 }
 
 void
-vulkan_deleteLogicalDevice(VkDevice *device){
+vulkan_deleteDevice(VkDevice *device){
     vkDestroyDevice(*device, NULL);
     *device = (VkDevice){0};
 }
@@ -332,8 +336,11 @@ vulkan_deleteLogicalDevice(VkDevice *device){
 int32_t
 vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device){
     struct vulkan_swapchainSupportDetails swapchainSupportDetails = {0};
-    s_getSwapchainSupport(&swapchainSupportDetails, surface, physicalDevice);
-    //printf("%d %d\n", swapchainSupportDetails.surfaceFormatsCount, swapchainSupportDetails.presentModesCount);
+    if(s_getSwapchainSupport(&swapchainSupportDetails, surface, physicalDevice)){
+        fprintf(stderr, "Error: Not the right support for swapchain\n");
+        return 1;
+    }
+    
     
     VkSurfaceFormatKHR surfaceFormat;
     VkPresentModeKHR presentMode;
@@ -450,6 +457,7 @@ vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray,
         }
     }
     
+    return 0;
 }
 
 /*
@@ -573,6 +581,7 @@ s_ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
         return 1;
     }
     
+    
 #ifdef DEBUG
     printf("%d\n", extensionPropertiesCount);
     for(int32_t iter=0; iter<extensionPropertiesCount; iter++){
@@ -656,6 +665,7 @@ s_evaluateQueueFamiliesProperties(struct vulkan_queueIndices *queueIndicesArg, c
         }
         if(queueIndices.presentQueue != -1 && queueIndices.graphicsQueue != -1){
             *queueIndicesArg = queueIndices;
+            //printf("queue index %d %d\n", queueIndices.presentQueue, queueIndices.graphicsQueue);
             return 0;
         }
     }
@@ -813,12 +823,15 @@ s_evaluatePresentModes(const VkPresentModeKHR *presentModes, int32_t presentMode
 static
 VkExtent2D
 s_evaluateSwapExtent(const VkSurfaceCapabilitiesKHR *surfaceCapabilities, struct window_window *window){
-    if(0 && surfaceCapabilities->currentExtent.width != 0xFFFFFFFF){
+    if(surfaceCapabilities->currentExtent.width != (int32_t)0xFFFFFFFF){
         printf(" * : Swap Extent of size %d %d\n", surfaceCapabilities->currentExtent.width, surfaceCapabilities->currentExtent.height);
         return surfaceCapabilities->currentExtent;
     }else{
         int32_t width, height;
         window_getFrameBufferSize(window, &width, &height);
+        //printf("max\n\t%d\n\t%d\n", surfaceCapabilities->maxImageExtent.height, surfaceCapabilities->maxImageExtent.width);
+        //printf("min\n\t%d\n\t%d\n", surfaceCapabilities->minImageExtent.height, surfaceCapabilities->minImageExtent.width);
+        //printf("current\n\t%d\n\t%d\n", surfaceCapabilities->currentExtent.height, surfaceCapabilities->currentExtent.width);
         
         if(width < surfaceCapabilities->minImageExtent.width){
             width = surfaceCapabilities->minImageExtent.width;

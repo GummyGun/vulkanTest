@@ -49,14 +49,14 @@ int32_t vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, struct w
 int32_t vulkan_createInstance(VkInstance *instance);
 int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
 int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
-int32_t vulkan_createLogicalDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+int32_t vulkan_createDevice(VkDevice *device, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 int32_t vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device);
 int32_t vulkan_createImageViews(struct vulkan_imageViewDetails *imageViewArray, const struct vulkan_imageDetails *imageArray, VkDevice device, const VkFormat *swapchainImageFormat);
 
 //deletion functions
 void vulkan_deleteImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, VkDevice device);
 void vulkan_deleteSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *imageArray, VkDevice device);
-void vulkan_deleteLogicalDevice(VkDevice *device);
+void vulkan_deleteDevice(VkDevice *device);
 void vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
 void vulkan_deleteInstance(VkInstance *instance);
 void vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket);

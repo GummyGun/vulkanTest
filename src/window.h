@@ -1,6 +1,10 @@
 #ifndef __GUM__VULKAN__WINDOW__
 #define __GUM__VULKAN__WINDOW__
 
+#ifdef WAY_PROT
+#elif X11_PROT
+#endif
+
 #include <vulkan/vulkan.h>
 #include <stdint.h>
 
@@ -9,12 +13,14 @@
 #ifdef WAY_PROT
 
 #include <wayland-client.h>
+#include <vulkan/vulkan_wayland.h>
 struct window_window{
     struct wl_display *display;
     struct wl_registry *registry;
+    
+    struct wl_compositor *compositor;
     struct wl_surface *surface;
     
-    //GLFWwindow *window;
     int32_t width, height;
 };
 
@@ -26,6 +32,7 @@ struct window_window{
     GLFWwindow *window;
     int32_t width, height;
 };
+
 #else
 
 <<<<select a WM>>>>>>

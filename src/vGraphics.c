@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /*------------------defines------------------*/
 
@@ -16,6 +17,9 @@
 
 //int32_t vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 //void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
+
+/* window ->instance -> surface -> physicalDevice -> device -> Queue -> swapchain -> swapchainDetails -> images -> imageViews */
+/* renderPass */
 
 //statics
 
@@ -31,16 +35,53 @@ static void s_deletePipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice de
 static int32_t s_createRenderPass(VkRenderPass *renderPass, VkDevice device, const VkFormat *const swapchainImageFormat);
 static void s_deleteRenderPass(VkRenderPass *renderPass, VkDevice device);
 
+static int32_t s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageViewDetails *imageViewArray, VkRenderPass renderPass);
+static void s_deleteFrameBuffer(VkRenderPass *renderPass, VkDevice device);
+
+static int32_t s_createCommandPool(VkCommandPool *commandPool, VkDevice device);//to change
+static void s_deleteCommandPool();//to change
+
+static int32_t s_createCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommandPool commandPool);
+static void s_deleteCommandBuffer();//to change
+
+//static int32_t recordCommandBuffer(VkCommandBuffer commandBuffer, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline);
+static int32_t recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray);
+
+
 /*------------------    globals    ------------------*/
 
 /*------------------implementations------------------*/
 
 int32_t
 vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
-    if(s_createPipeline(graphicsPipeline, graphicsPacket->device, &(graphicsPacket->swapchainDetails))){
-        fprintf(stderr, "Error: creating pipeline\n");
+    if(s_createRenderPass(&(graphicsPipeline->renderPass), graphicsPacket->device, &(graphicsPacket->swapchainDetails.imageFormat))){
+        fprintf(stderr, "Error: Creating renderPass\n");
         return 1;
     }
+    
+    if(s_createPipeline(graphicsPipeline, graphicsPacket->device, &(graphicsPacket->swapchainDetails))){
+        fprintf(stderr, "Error: Creating test pipeline\n");
+        return 1;
+    }
+    
+    if(s_createFrameBuffer(&(graphicsPipeline->frameBufferArray), graphicsPacket->device, &(graphicsPacket->swapchainDetails), &(graphicsPacket->imageViewArray), graphicsPipeline->renderPass)){
+        fprintf(stderr, "Error: Creating frame buffer\n");
+        return 1;
+    }
+    if(s_createCommandPool(&(graphicsPipeline->commandPool), graphicsPacket->device)){
+        fprintf(stderr, "Error: Creating command pool\n");
+        return 1;
+    }
+    if(s_createCommandBuffer(&(graphicsPipeline->commandBuffer), graphicsPacket->device, graphicsPipeline->commandPool)){
+        fprintf(stderr, "Error: Creating command buffer\n");
+        return 1;
+    }
+    /*
+    if(0){
+        fprintf(stderr, "Error: Creating command buffer\n");
+        return 1;
+    }
+    */
     return 0;
 }
 
@@ -55,11 +96,6 @@ static
 int32_t
 s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails){
     printf("Creating Pipeline\n");
-    if(s_createRenderPass(&(graphicsPipeline->renderPass), device, &(swapchainDetails->imageFormat))){
-        fprintf(stderr, "Error: creating renderPass\n");
-        return 1;
-    }
-    
     if(s_createShaderModule(&(graphicsPipeline->vertShaderModule), "res/shaders/shader.vert.spv", device)){
         return 1;
     };
@@ -158,10 +194,10 @@ s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, stru
     colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &colorBlendAttachment;
-    colorBlending.blendConstants[0] = 0.0f; // Optional
-    colorBlending.blendConstants[1] = 0.0f; // Optional
-    colorBlending.blendConstants[2] = 0.0f; // Optional
-    colorBlending.blendConstants[3] = 0.0f; // Optional
+    *(colorBlending.blendConstants+0) = 0.0f; // Optional
+    *(colorBlending.blendConstants+1) = 0.0f; // Optional
+    *(colorBlending.blendConstants+2) = 0.0f; // Optional
+    *(colorBlending.blendConstants+3) = 0.0f; // Optional
     
     if(s_createPipelineLayout(&(graphicsPipeline->layout), device)){
         return 1;
@@ -186,9 +222,10 @@ s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, stru
     pipelineInfo.subpass = 0;
     
     if(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &(graphicsPipeline->graphicsPipeline)) != VK_SUCCESS){
-        fprintf(stderr, "Error: error creating pipeline");
+        fprintf(stderr, "Error: Error creating pipeline");
         return 1;
     }
+    
     return 0;
 }
 
@@ -217,7 +254,7 @@ s_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device){
     pipelineLayoutCreateInfo.pPushConstantRanges = NULL; // Optional
     
     if(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, NULL, pipelineLayout) != VK_SUCCESS) {
-        fprintf(stderr, "Error: creating pipelineLayout\n");
+        fprintf(stderr, "Error: Creating pipelineLayout\n");
         return 1;
     }
     return 0;
@@ -241,7 +278,7 @@ s_createShaderModule(VkShaderModule *shaderModule, const char *shaderFileName, V
     shaderModuleCreateInfo.codeSize = shaderSPVFile.size;
     shaderModuleCreateInfo.pCode = (uint32_t*)(shaderSPVFile.content);
     if(vkCreateShaderModule(device, &shaderModuleCreateInfo, NULL, shaderModule)){
-        fprintf(stderr, "Error: creating shader module %s\n", shaderFileName);
+        fprintf(stderr, "Error: Creating shader module %s\n", shaderFileName);
         return 1;
     }
     if(utils_closeFile(&shaderSPVFile)){
@@ -290,7 +327,7 @@ s_createRenderPass(VkRenderPass *renderPass, VkDevice device, const VkFormat *co
     renderPassCreateInfo.pSubpasses = &subpass;
     
     if(vkCreateRenderPass(device, &renderPassCreateInfo, NULL, renderPass) != VK_SUCCESS) {
-        fprintf(stderr, "Error: failed to create render pass!\n");
+        fprintf(stderr, "Error: Failed to create render pass!\n");
         return 1;
     }
     return 0;
@@ -302,5 +339,129 @@ void
 s_deleteRenderPass(VkRenderPass *renderPass, VkDevice device){
     vkDestroyRenderPass(device, *renderPass, NULL);
     *renderPass = NULL;
+}
+
+static
+int32_t
+s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageViewDetails *imageViewArray, VkRenderPass renderPass){
+    frameBufferArray->count = imageViewArray->count;
+    frameBufferArray->frameBuffers = malloc(frameBufferArray->count*sizeof(VkFramebuffer));
+    if(!frameBufferArray->frameBuffers){
+        fprintf(stderr, "Error: Malloc failed\n");
+        return 1;
+    }
+    for(int32_t iter=0; iter<imageViewArray->count; iter++){
+        VkImageView attachments[] = {*((imageViewArray->imageViews)+iter)};
+        
+        VkFramebufferCreateInfo framebufferCreateInfo = {};
+        framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.renderPass = renderPass;
+        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.pAttachments = attachments;
+        framebufferCreateInfo.width = swapchainDetails->extent.width;
+        framebufferCreateInfo.height = swapchainDetails->extent.height;
+        framebufferCreateInfo.layers = 1;
+        
+        if((vkCreateFramebuffer(device, &framebufferCreateInfo, NULL, (frameBufferArray->frameBuffers)+iter)) != VK_SUCCESS){
+            fprintf(stderr, "Error: Creating %d frameBuffer\n", iter);
+            return 1;
+        }
+    }
+    
+    return 0;
+}
+
+static
+void 
+s_deleteFrameBuffer(VkRenderPass *renderPass, VkDevice device){
+    //tochange frame buffer deletion function
+}
+
+static
+int32_t
+s_createCommandPool(VkCommandPool *commandPool, VkDevice device){
+    //tochange index;
+    
+    VkCommandPoolCreateInfo commandPoolCreateInfo = {};
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    commandPoolCreateInfo.queueFamilyIndex = 0;
+    
+    if(vkCreateCommandPool(device, &commandPoolCreateInfo, NULL, commandPool) != VK_SUCCESS){
+        fprintf(stderr, "Error: failed to create command pool\n");
+        return 1;
+    }
+    
+    return 0;
+}
+
+static
+void
+s_deleteCommandPool(){
+    //tochange frame buffer deletion function
+}
+
+static
+int32_t
+s_createCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommandPool commandPool){
+    
+    VkCommandBufferAllocateInfo commandBufferCreateInfo = {};
+    commandBufferCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    commandBufferCreateInfo.commandPool = commandPool;
+    commandBufferCreateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBufferCreateInfo.commandBufferCount = 1;
+
+    if (vkAllocateCommandBuffers(device, &commandBufferCreateInfo, commandBuffer) != VK_SUCCESS) {
+        fprintf(stderr, "Error: Failed to allocate command buffers!");
+        return 1;
+    }
+    return 0;
+}
+
+static
+int32_t 
+recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray){
+    
+    VkRenderPassBeginInfo renderPassInfo = {};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderPass;
+    renderPassInfo.framebuffer = frameBufferArray->frameBuffers[imageIndex];
+    
+    renderPassInfo.renderArea.offset = (VkOffset2D){0, 0};
+    renderPassInfo.renderArea.extent = swapchainDetails->extent;
+
+    
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
+    
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+    
+    VkViewport viewport = {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)(swapchainDetails->extent.width);
+    viewport.height = (float)(swapchainDetails->extent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.offset = (VkOffset2D){0, 0};
+    scissor.extent = swapchainDetails->extent;
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+    
+    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    
+    vkCmdEndRenderPass(commandBuffer);
+
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+        fprintf(stderr, "Error: failed to record command buffer\n");
+        return 1;
+    }
+    
+    return 0;
 }
 
