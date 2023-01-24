@@ -1,4 +1,4 @@
-target = X11
+target = Way
 
 TMP = tmps
 OBJ = $(TMP)/obj

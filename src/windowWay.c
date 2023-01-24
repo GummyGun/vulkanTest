@@ -133,7 +133,7 @@ static
 void
 s_registryHandleGlobal(void *data, struct wl_registry *wlRegistry, uint32_t id, const char *interface, uint32_t version) {
     struct window_window *window = (struct window_window*)data;
-    if (strcmp(interface, wl_compositor_interface.name) == 0) {
+    if(strcmp(interface, wl_compositor_interface.name) == 0) {
         window->compositor = wl_registry_bind(wlRegistry, id, &wl_compositor_interface, version);
         printf("compositor was saved\n");
     }

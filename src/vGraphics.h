@@ -20,6 +20,10 @@ struct vGraph_pipeline{
     VkPipelineLayout layout;
     VkPipeline graphicsPipeline;
     struct vGraph_frameBufferDetails frameBufferArray;
+    
+    VkCommandPool commandPool;
+    VkCommandBuffer commandBuffer;
+    
 };
 
 //functions
