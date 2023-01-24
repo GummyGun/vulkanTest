@@ -457,6 +457,7 @@ vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray,
         }
     }
     
+    return 0;
 }
 
 /*
@@ -855,7 +856,6 @@ int32_t
 s_getSwapchainImages(struct vulkan_imageDetails *imageArray, VkDevice device, VkSwapchainKHR swapchain){
     vkGetSwapchainImagesKHR(device, swapchain, &(imageArray->count), NULL);
     imageArray->images = malloc(imageArray->count*sizeof(VkImage));
-    printf("\n\t\t\t\t\t\timage Quant %d\n\n", imageArray->count);
     if(!imageArray->images){
         return 1;
     }

@@ -339,6 +339,7 @@ s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice
         framebufferInfo.layers = 1;
         
         if((vkCreateFramebuffer(device, &framebufferInfo, NULL, (frameBufferArray->frameBuffers)+iter)) != VK_SUCCESS){
+            printf("hola\n");
             return 1;
         }
         
