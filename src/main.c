@@ -32,13 +32,18 @@ int main(){
         assert(0 && "Error creating pipeline");
     }
     
-    while(!window_closeWindowEvent(&window)){
+    printf("------------------------------------------------\n\n------------------------------------------------\n");
+    
+    while(window_closeWindowEvent(&window)){
         window_pollEvents();
-        if(vGraph_drawFrame(&vulkanPipeline, &vulkanStruct)){
-        fprintf(stderr, "[vGraphics] Error: Drawing triangle\n");
+        if(vGraph_drawFrame(&vulkanStruct, &vulkanPipeline)){
+            fprintf(stderr, "[vGraphics] Error: Drawing triangle\n");
             assert(0 && "Error drawing triangle");
         }
+        sleep(1);
     }
+    
+    //vkDeviceWaitIdle(gradevice);
     
     printf("------------------------------------------------\n\n------------------------------------------------\n");
     

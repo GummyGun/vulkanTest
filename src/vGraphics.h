@@ -36,6 +36,6 @@ struct vGraph_pipeline{
 
 int32_t vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
-int32_t vGraph_drawFrame(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
+int32_t vGraph_drawFrame(struct vulkan_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline);
 
 #endif

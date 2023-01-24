@@ -34,7 +34,7 @@ struct vulkan_graphicsStruct{
     VkSurfaceKHR surface;
     VkPhysicalDevice physicalDevice;
     VkDevice device;
-    struct vulkan_queueHandles queuesHandles;
+    struct vulkan_queueHandles queueHandles;
     VkSwapchainKHR swapchain;
     struct vulkan_swapchainDetails swapchainDetails;
     

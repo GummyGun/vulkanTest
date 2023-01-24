@@ -17,7 +17,7 @@
 
 //int32_t vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 //void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
-//int32_t vGraph_drawFrame(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
+//int32_t vGraph_drawFrame(struct vulkan_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline);
 
 /* window ->instance -> surface -> physicalDevice -> device -> Queue -> swapchain -> swapchainDetails -> images -> imageViews */
 /* renderPass */
@@ -92,9 +92,57 @@ vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_g
 }
 
 int32_t
-vGraph_drawFrame(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
+vGraph_drawFrame(struct vulkan_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline){
     printf("drawing traingle\n");
-    return 1;
+    
+    vkWaitForFences(graphicsPacket->device, 1, &(graphicsPipeline->syncObjects.inFlightFence), VK_TRUE, UINT64_MAX);
+    
+    vkResetFences(graphicsPacket->device, 1, &(graphicsPipeline->syncObjects.inFlightFence));
+
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(graphicsPacket->device, graphicsPacket->swapchain, UINT64_MAX, graphicsPipeline->syncObjects.imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+    
+    vkResetCommandBuffer(graphicsPipeline->commandBuffer, 0);
+    s_recordCommandBuffer(graphicsPipeline->commandBuffer, imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray));
+    
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = {graphicsPipeline->syncObjects.imageAvailableSemaphore};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &(graphicsPipeline->commandBuffer);
+    
+    VkSemaphore signalSemaphores[] = {graphicsPipeline->syncObjects.renderFinishedSemaphore};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+    
+    if (vkQueueSubmit(graphicsPacket->queueHandles.graphicsQueue, 1, &submitInfo, graphicsPipeline->syncObjects.inFlightFence) != VK_SUCCESS) {
+        fprintf(stderr, "Error:t failed to submit draw command buffer!\n");
+        return 1;
+    }
+    
+    
+    VkPresentInfoKHR presentInfo = {};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+
+    VkSwapchainKHR swapChains[] = {graphicsPacket->swapchain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    presentInfo.pResults = NULL; // Optional
+
+    vkQueuePresentKHR(graphicsPacket->queueHandles.presentQueue, &presentInfo);
+
+    return 0;
 }
 
 static
@@ -324,12 +372,25 @@ s_createRenderPass(VkRenderPass *renderPass, VkDevice device, const VkFormat *co
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentReference;
     
+    VkSubpassDependency subpassDependency = {};
+    subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    subpassDependency.dstSubpass = 0;    
+    subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpassDependency.srcAccessMask = 0;
+    subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+
+    
     VkRenderPassCreateInfo renderPassCreateInfo = {};
     renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     renderPassCreateInfo.attachmentCount = 1;
     renderPassCreateInfo.pAttachments = &colorAttachmentDescription;
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpass;
+    renderPassCreateInfo.dependencyCount = 1;
+    renderPassCreateInfo.pDependencies = &subpassDependency;
+
     
     if(vkCreateRenderPass(device, &renderPassCreateInfo, NULL, renderPass) != VK_SUCCESS) {
         fprintf(stderr, "Error: Failed to create render pass!\n");
@@ -430,6 +491,8 @@ s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
     
     VkFenceCreateInfo fenceInfo = {};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    
     
     if(vkCreateSemaphore(device, &semaphoreInfo, NULL, &(syncObjects->imageAvailableSemaphore)) != VK_SUCCESS){
         fprintf(stderr, "Error: error creating imageAvailableSemaphore\n");
@@ -455,9 +518,19 @@ s_deleteSyncObjects(){
     
 }
 
+
+
 static
 int32_t 
 s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray){
+    
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if(vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+        fprintf(stderr, "failed to begin recording command buffer!");
+        return 1;
+    }
     
     VkRenderPassBeginInfo renderPassInfo = {};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -501,8 +574,4 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
     
     return 0;
 }
-
-
-
-
 

@@ -1,22 +1,3 @@
-/*
-#include <stdint.h>
-#include <string.h>
-#include <stdio.h>
-#include <wayland-client.h>
-
-int
-main(int argc, char *argv[]){
-	    struct wl_display *display = wl_display_connect(NULL);
-	    struct wl_registry *registry = wl_display_get_registry(display);
-    struct wl_compositor *compositor = NULL;
-    struct wl_surface *surface = NULL;
-    printf("%s\n", wl_compositor_interface.name);
-    printf("after: \ncompositor: %p\nsurface: %p\n", compositor, surface);
-    surface = wl_compositor_create_surface(compositor);
-    printf("after: \ncompositor: %p\nsurface: %p\n", compositor, surface);
-	return 0;
-}
-*/
 #include "window.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -82,8 +63,11 @@ window_initWindow(struct window_window *windowParam, int32_t widthParam, int32_t
 
 int32_t 
 window_closeWindowEvent(struct window_window *windowParam){
+    static int state = 8;
+    
+    
     //return glfwWindowShouldClose(windowParam->window);
-    return 1;
+    return state--;
 }
 
 int32_t

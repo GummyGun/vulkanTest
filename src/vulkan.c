@@ -116,7 +116,7 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *restrict const graphicsPacket, s
         fprintf(stderr, "Error: Chossing physical device\n");
         return 1;
     }
-    if(vulkan_createDevice(&(graphicsPacket->device), &(graphicsPacket->queuesHandles), (graphicsPacket->instance), (graphicsPacket->surface), (graphicsPacket->physicalDevice))){
+    if(vulkan_createDevice(&(graphicsPacket->device), &(graphicsPacket->queueHandles), (graphicsPacket->instance), (graphicsPacket->surface), (graphicsPacket->physicalDevice))){
         fprintf(stderr, "Error: Creating logical device\n");
         return 1;
     }
