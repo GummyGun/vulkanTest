@@ -13,7 +13,7 @@
 #ifdef WAY_PROT
 
 #include <wayland-client.h>
-#include <vulkan/vulkan_wayland.h>
+#include <vulkan/vInit_wayland.h>
 struct window_window{
     struct wl_display *display;
     struct wl_registry *registry;

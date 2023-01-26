@@ -13,7 +13,7 @@
 
 /*------------------  stucts  ------------------*/
 
-struct vulkan_swapchainSupportDetails{
+struct vInit_swapchainSupportDetails{
     VkSurfaceCapabilitiesKHR surfaceCapabilities;
     uint32_t surfaceFormatsCount;
     VkSurfaceFormatKHR *surfaceFormats;
@@ -25,23 +25,23 @@ struct vulkan_swapchainSupportDetails{
 
 /* window ->instance -> surface -> physicalDevice -> queueIndices -> device -> queueHandles -> Queue -> swapchain -> swapchainDetails -> images -> imageViews */
 
-//int32_t vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, struct window_window *window);
-//int32_t vulkan_createInstance(VkInstance *instance);
-//int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
-//int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
-//int32_t vulkan_createDevice(VkDevice *device, struct vulkan_queueIndices *queueIndices, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
-//int32_t vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, struct vulkan_queueIndices *queueIndices, VkDevice device);
-//int32_t vulkan_createImageViews(struct vulkan_imageViewDetails *imageViewArray, const struct vulkan_imageDetails *imageArray, VkDevice device, const VkFormat *swapchainImageFormat);
+//int32_t vInit_initVulkan(struct vInit_graphicsStruct *graphicsPacket, struct window_window *window);
+//int32_t vInit_createInstance(VkInstance *instance);
+//int32_t vInit_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
+//int32_t vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
+//int32_t vInit_createDevice(VkDevice *device, struct vInit_queueIndices *queueIndices, struct vInit_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+//int32_t vInit_createSwapchain(VkSwapchainKHR *swapchain, struct vInit_swapchainDetails *swapchainDetails, struct vInit_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, struct vInit_queueIndices *queueIndices, VkDevice device);
+//int32_t vInit_createImageViews(struct vInit_imageViewDetails *imageViewArray, const struct vInit_imageDetails *imageArray, VkDevice device, const VkFormat *swapchainImageFormat);
 
 
 //deletion functions
 
-//void vulkan_deleteImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, VkDevice device);
-//void vulkan_deleteSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *imageArray, VkDevice device);
-//void vulkan_deleteDevice(VkDevice *device);
-//void vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
-//void vulkan_deleteInstance(VkInstance *instance);
-//void vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket);
+//void vInit_deleteImageViews(struct vInit_imageViewDetails *restrict imageViewArray, VkDevice device);
+//void vInit_deleteSwapchain(VkSwapchainKHR *swapchain, struct vInit_imageDetails *imageArray, VkDevice device);
+//void vInit_deleteDevice(VkDevice *device);
+//void vInit_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
+//void vInit_deleteInstance(VkInstance *instance);
+//void vInit_destroyVulkan(struct vInit_graphicsStruct *graphicsPacket);
 
 //statics
 
@@ -60,25 +60,25 @@ static int32_t s_ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physi
 static void s_freePhysicalDevices(VkPhysicalDevice **PDs);
 
 
-static int32_t s_getQueueFamiliesIndices(struct vulkan_queueIndices *queueIndices, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+static int32_t s_getQueueFamiliesIndices(struct vInit_queueIndices *queueIndices, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 static int32_t s_getQueueFamiliesProperties(VkQueueFamilyProperties **queueProperties, uint32_t *queuePropertiesCount, VkPhysicalDevice physicalDevice);
-static int32_t s_evaluateQueueFamiliesProperties(struct vulkan_queueIndices *queueIndicesArg, const VkQueueFamilyProperties *queueProperties, uint32_t queuePropertiesCount, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+static int32_t s_evaluateQueueFamiliesProperties(struct vInit_queueIndices *queueIndicesArg, const VkQueueFamilyProperties *queueProperties, uint32_t queuePropertiesCount, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 static void s_freeQueueFamiliesProperties(VkQueueFamilyProperties **queueProperties);
 
 static int32_t s_getDeviceExtentionProperties(VkExtensionProperties **extensionProperties, uint32_t *extensionPropertiesCount, VkPhysicalDevice physicalDevice);
 static int32_t s_evaluateEnabledDeviceExtentionProperties(const char *const *enabledExtensionNames, uint32_t enabledExtensionNamesCount, VkExtensionProperties *extensionProperties, uint32_t extensionPropertiesCount);
 static void s_freeDeviceExtentionProperties(VkExtensionProperties **extensionProperties);
 
-static int32_t s_evaluateSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
-static int32_t s_getSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
-static void s_freeSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport);
+static int32_t s_evaluateSwapchainSupport(struct vInit_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+static int32_t s_getSwapchainSupport(struct vInit_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+static void s_freeSwapchainSupport(struct vInit_swapchainSupportDetails *swapchainSupport);
 
 static VkSurfaceFormatKHR s_evaluateSurfaceFormats(const VkSurfaceFormatKHR *surfaceFormats, int32_t surfaceFormatsCount);
 static VkPresentModeKHR s_evaluatePresentModes(const VkPresentModeKHR *presentModes, int32_t presentModesCount);
 static VkExtent2D s_evaluateSwapExtent(const VkSurfaceCapabilitiesKHR *surfaceCapabilities, struct window_window *window);
 
-static int32_t s_getSwapchainImages(struct vulkan_imageDetails *imageArray, VkDevice device, VkSwapchainKHR swapchain);
-static void s_deleteSwapchainImages(struct vulkan_imageDetails *restrict imageDetails);
+static int32_t s_getSwapchainImages(struct vInit_imageDetails *imageArray, VkDevice device, VkSwapchainKHR swapchain);
+static void s_deleteSwapchainImages(struct vInit_imageDetails *restrict imageDetails);
 
 
 /*------------------    globals    ------------------*/
@@ -96,30 +96,30 @@ const uint32_t enabledDeviceExtensionsCount=sizeof(enabledDeviceExtensions)/size
 
 
 int32_t
-vulkan_initVulkan(struct vulkan_graphicsStruct *restrict const graphicsPacket, struct window_window *restrict const window){
+vInit_initVulkan(struct vInit_graphicsStruct *restrict const graphicsPacket, struct window_window *restrict const window){
     VkPhysicalDevice physicalDevice;
     
-    if(vulkan_createInstance(&(graphicsPacket->instance))){
+    if(vInit_createInstance(&(graphicsPacket->instance))){
         fprintf(stderr, "Error: Creating instance\n");
         return 1;
     }
-    if(vulkan_createSurface(&(graphicsPacket->surface), graphicsPacket->instance, window)){
+    if(vInit_createSurface(&(graphicsPacket->surface), graphicsPacket->instance, window)){
         fprintf(stderr, "Error: Creating the surface\n");
         return 1;
     }
-    if(vulkan_selectPhysicalDevice(&(graphicsPacket->physicalDevice), graphicsPacket->instance, graphicsPacket->surface)){
+    if(vInit_selectPhysicalDevice(&(graphicsPacket->physicalDevice), graphicsPacket->instance, graphicsPacket->surface)){
         fprintf(stderr, "Error: Chossing physical device\n");
         return 1;
     }
-    if(vulkan_createDevice(&(graphicsPacket->device), &(graphicsPacket->queueIndices), &(graphicsPacket->queueHandles), graphicsPacket->instance, graphicsPacket->surface, graphicsPacket->physicalDevice)){
+    if(vInit_createDevice(&(graphicsPacket->device), &(graphicsPacket->queueIndices), &(graphicsPacket->queueHandles), graphicsPacket->instance, graphicsPacket->surface, graphicsPacket->physicalDevice)){
         fprintf(stderr, "Error: Creating logical device\n");
         return 1;
     }
-    if(vulkan_createSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->swapchainDetails), &(graphicsPacket->imageArray), window, graphicsPacket->surface, graphicsPacket->physicalDevice, &(graphicsPacket->queueIndices), graphicsPacket->device)){
+    if(vInit_createSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->swapchainDetails), &(graphicsPacket->imageArray), window, graphicsPacket->surface, graphicsPacket->physicalDevice, &(graphicsPacket->queueIndices), graphicsPacket->device)){
         fprintf(stderr, "Error: Creating swap chain\n");
         return 1;
     }
-    if(vulkan_createImageViews(&(graphicsPacket->imageViewArray), &(graphicsPacket->imageArray), graphicsPacket->device, &(graphicsPacket->swapchainDetails.imageFormat))){
+    if(vInit_createImageViews(&(graphicsPacket->imageViewArray), &(graphicsPacket->imageArray), graphicsPacket->device, &(graphicsPacket->swapchainDetails.imageFormat))){
         fprintf(stderr, "Error: Creating image views\n");
         return 1;
     }
@@ -132,16 +132,16 @@ vulkan_initVulkan(struct vulkan_graphicsStruct *restrict const graphicsPacket, s
 }
 
 void
-vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket){
-    vulkan_deleteImageViews(&(graphicsPacket->imageViewArray), graphicsPacket->device);
-    vulkan_deleteSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->imageArray), graphicsPacket->device);
-    vulkan_deleteDevice(&(graphicsPacket->device));
-    vulkan_deleteSurface(&(graphicsPacket->surface), graphicsPacket->instance);
-    vulkan_deleteInstance(&(graphicsPacket->instance));
+vInit_destroyVulkan(struct vInit_graphicsStruct *graphicsPacket){
+    vInit_deleteImageViews(&(graphicsPacket->imageViewArray), graphicsPacket->device);
+    vInit_deleteSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->imageArray), graphicsPacket->device);
+    vInit_deleteDevice(&(graphicsPacket->device));
+    vInit_deleteSurface(&(graphicsPacket->surface), graphicsPacket->instance);
+    vInit_deleteInstance(&(graphicsPacket->instance));
 }
 
 int32_t 
-vulkan_createInstance(VkInstance *instance){
+vInit_createInstance(VkInstance *instance){
     VkApplicationInfo appInfo={};
     VkInstanceCreateInfo imageViewCreateInfo={};
     VkResult vulkanResult;
@@ -219,14 +219,14 @@ vulkan_createInstance(VkInstance *instance){
 
 
 void 
-vulkan_deleteInstance(VkInstance *instance){
+vInit_deleteInstance(VkInstance *instance){
     printf("deleting the instance\n");
     vkDestroyInstance(*instance, NULL);
     *instance = (VkInstance){0};
 }
 
 int32_t
-vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window){
+vInit_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window){
     VkResult result;
     if((result = window_createSurface(surface, window, instance)) != VK_SUCCESS){
         fprintf(stderr, "Error: Creating the surface Errco%d\n", result);
@@ -236,14 +236,14 @@ vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_w
 }
 
 void
-vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance){
+vInit_deleteSurface(VkSurfaceKHR *surface, VkInstance instance){
     printf("deleting the surface\n");
     vkDestroySurfaceKHR(instance, *surface, NULL);
     *surface = (VkSurfaceKHR){0};
 }
 
 int32_t 
-vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface){
+vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface){
     int32_t result;
     VkPhysicalDevice *physicalDevices;
     uint32_t physicalDevicesCount=0;
@@ -271,7 +271,7 @@ vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instanc
 }
 
 int32_t
-vulkan_createDevice(VkDevice *device, struct vulkan_queueIndices *queueIndices, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
+vInit_createDevice(VkDevice *device, struct vInit_queueIndices *queueIndices, struct vInit_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     VkResult result;
     
     if(s_getQueueFamiliesIndices(queueIndices, surface, physicalDevice)){
@@ -321,14 +321,14 @@ vulkan_createDevice(VkDevice *device, struct vulkan_queueIndices *queueIndices, 
 }
 
 void
-vulkan_deleteDevice(VkDevice *device){
+vInit_deleteDevice(VkDevice *device){
     vkDestroyDevice(*device, NULL);
     *device = (VkDevice){0};
 }
 
 int32_t
-vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, struct vulkan_queueIndices *queueIndices, VkDevice device){
-    struct vulkan_swapchainSupportDetails swapchainSupportDetails = {0};
+vInit_createSwapchain(VkSwapchainKHR *swapchain, struct vInit_swapchainDetails *swapchainDetails, struct vInit_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, struct vInit_queueIndices *queueIndices, VkDevice device){
+    struct vInit_swapchainSupportDetails swapchainSupportDetails = {0};
     if(s_getSwapchainSupport(&swapchainSupportDetails, surface, physicalDevice)){
         fprintf(stderr, "Error: Not the right support for swapchain\n");
         return 1;
@@ -400,14 +400,14 @@ vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_swapchainDetails
 }
 
 void 
-vulkan_deleteSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *imageArray, VkDevice device){
+vInit_deleteSwapchain(VkSwapchainKHR *swapchain, struct vInit_imageDetails *imageArray, VkDevice device){
     s_deleteSwapchainImages(imageArray);
     vkDestroySwapchainKHR(device, *swapchain, NULL);
 }
 
 
 int32_t
-vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, const struct vulkan_imageDetails *const restrict imageArray, restrict VkDevice device, const VkFormat *restrict const swapchainImageFormat){
+vInit_createImageViews(struct vInit_imageViewDetails *restrict imageViewArray, const struct vInit_imageDetails *const restrict imageArray, restrict VkDevice device, const VkFormat *restrict const swapchainImageFormat){
     imageViewArray->imageViews = malloc(imageArray->count*sizeof(VkImageView));
     if(!imageViewArray->imageViews){
         fprintf(stderr, "Error: Malloc failed\n");
@@ -448,15 +448,16 @@ vulkan_createImageViews(struct vulkan_imageViewDetails *restrict imageViewArray,
 }
 
 /*
-void vulkan_deleteImageViews(struct vulkan_imageViewDetails *imageViewArray, VkDevice device);
+void vInit_deleteImageViews(struct vInit_imageViewDetails *imageViewArray, VkDevice device);
 */
 void
-vulkan_deleteImageViews(struct vulkan_imageViewDetails *restrict const imageViewArray, restrict VkDevice device){
+vInit_deleteImageViews(struct vInit_imageViewDetails *restrict const imageViewArray, restrict VkDevice device){
     for(int32_t iter=0; iter<imageViewArray->count; iter++){
         vkDestroyImageView(device, *((imageViewArray->imageViews)+iter), NULL);
     }
     free(imageViewArray->imageViews);
     imageViewArray->imageViews = NULL;
+    imageViewArray->count = 0;
 }
 
 /* ----------------------- static methods ----------------------- */
@@ -554,7 +555,7 @@ s_ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
     printf("%s\n", deviceProperties.deviceName);
     
-    struct vulkan_queueIndices queueIndices;
+    struct vInit_queueIndices queueIndices;
     if(s_getQueueFamiliesIndices(&queueIndices, surface, physicalDevice)){
         fprintf(stderr, "Error: Validating queues\n");
         return 1;
@@ -601,7 +602,7 @@ s_freePhysicalDevices(VkPhysicalDevice **PDs){
 
 static 
 int32_t 
-s_getQueueFamiliesIndices(struct vulkan_queueIndices *queueIndices, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
+s_getQueueFamiliesIndices(struct vInit_queueIndices *queueIndices, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     int32_t result;
     VkQueueFamilyProperties *queueProperties;
     uint32_t queuePropertiesCount;
@@ -633,9 +634,9 @@ s_getQueueFamiliesProperties(VkQueueFamilyProperties **queueProperties, uint32_t
 
 static
 int32_t 
-s_evaluateQueueFamiliesProperties(struct vulkan_queueIndices *queueIndicesArg, const VkQueueFamilyProperties *queueProperties, uint32_t queuePropertiesCount, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
+s_evaluateQueueFamiliesProperties(struct vInit_queueIndices *queueIndicesArg, const VkQueueFamilyProperties *queueProperties, uint32_t queuePropertiesCount, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     int32_t foundQueueBitmask = 0;
-    struct vulkan_queueIndices queueIndices = {-1, -1};
+    struct vInit_queueIndices queueIndices = {-1, -1};
     //printf("-------=-=-=-=-=-=-= %d\n", queuePropertiesCount);
     for(int32_t iter=0; iter<queuePropertiesCount; iter++){
         VkBool32 presentSupport = 0;
@@ -706,7 +707,7 @@ s_evaluateEnabledDeviceExtentionProperties(const char *const *enabledExtensionNa
 //if first parameter is NULL it will only check for numbers
 static
 int32_t
-s_evaluateSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
+s_evaluateSwapchainSupport(struct vInit_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     VkSurfaceCapabilitiesKHR capabilitiesTmp;
     VkSurfaceCapabilitiesKHR *capabilitiesHolder;
     
@@ -743,7 +744,7 @@ s_evaluateSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSuppo
 
 static
 int32_t
-s_getSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
+s_getSwapchainSupport(struct vInit_swapchainSupportDetails *swapchainSupport, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice){
     swapchainSupport->surfaceFormats = NULL;
     swapchainSupport->presentModes = NULL;
     
@@ -772,7 +773,7 @@ s_getSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport, V
 
 static
 void
-s_freeSwapchainSupport(struct vulkan_swapchainSupportDetails *swapchainSupport){
+s_freeSwapchainSupport(struct vInit_swapchainSupportDetails *swapchainSupport){
     free(swapchainSupport->surfaceFormats);
     free(swapchainSupport->presentModes);
     swapchainSupport->surfaceFormats = NULL;
@@ -840,7 +841,7 @@ s_evaluateSwapExtent(const VkSurfaceCapabilitiesKHR *surfaceCapabilities, struct
 
 static
 int32_t
-s_getSwapchainImages(struct vulkan_imageDetails *imageArray, VkDevice device, VkSwapchainKHR swapchain){
+s_getSwapchainImages(struct vInit_imageDetails *imageArray, VkDevice device, VkSwapchainKHR swapchain){
     vkGetSwapchainImagesKHR(device, swapchain, &(imageArray->count), NULL);
     imageArray->images = malloc(imageArray->count*sizeof(VkImage));
     if(!imageArray->images){
@@ -852,7 +853,7 @@ s_getSwapchainImages(struct vulkan_imageDetails *imageArray, VkDevice device, Vk
 
 static
 void
-s_deleteSwapchainImages(struct vulkan_imageDetails *restrict imageDetails){
+s_deleteSwapchainImages(struct vInit_imageDetails *restrict imageDetails){
     free(imageDetails->images);
     imageDetails->images = NULL;
 }

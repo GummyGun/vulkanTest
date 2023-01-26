@@ -9,63 +9,63 @@
 
 //structures
 
-struct vulkan_queueIndices{
+struct vInit_queueIndices{
     int32_t graphicsQueue;
     int32_t presentQueue;
 };
 
-struct vulkan_queueHandles{
+struct vInit_queueHandles{
     VkQueue graphicsQueue;
     VkQueue presentQueue;
 };
 
-struct vulkan_swapchainDetails{
+struct vInit_swapchainDetails{
     VkFormat imageFormat;
     VkExtent2D extent;
 };
 
-struct vulkan_imageDetails{
+struct vInit_imageDetails{
     VkImage *images;
     int32_t count;
 };
 
-struct vulkan_imageViewDetails{
+struct vInit_imageViewDetails{
     VkImageView *imageViews;
     int32_t count;
 };
 
-struct vulkan_graphicsStruct{
+struct vInit_graphicsStruct{
     VkInstance instance;
     VkSurfaceKHR surface;
     VkPhysicalDevice physicalDevice;
     VkDevice device;
     
-    struct vulkan_queueIndices queueIndices;
-    struct vulkan_queueHandles queueHandles;
+    struct vInit_queueIndices queueIndices;
+    struct vInit_queueHandles queueHandles;
     VkSwapchainKHR swapchain;
-    struct vulkan_swapchainDetails swapchainDetails;
+    struct vInit_swapchainDetails swapchainDetails;
     
-    struct vulkan_imageDetails imageArray;
-    struct vulkan_imageViewDetails imageViewArray;
+    struct vInit_imageDetails imageArray;
+    struct vInit_imageViewDetails imageViewArray;
     
 };
 
 //function prototypes
 
-int32_t vulkan_initVulkan(struct vulkan_graphicsStruct *graphicsPacket, struct window_window *window);
-int32_t vulkan_createInstance(VkInstance *instance);
-int32_t vulkan_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
-int32_t vulkan_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
-int32_t vulkan_createDevice(VkDevice *device, struct vulkan_queueIndices *queueIndices, struct vulkan_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
-int32_t vulkan_createSwapchain(VkSwapchainKHR *swapchain, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, struct vulkan_queueIndices *queueIndices, VkDevice device);
-int32_t vulkan_createImageViews(struct vulkan_imageViewDetails *imageViewArray, const struct vulkan_imageDetails *imageArray, VkDevice device, const VkFormat *swapchainImageFormat);
+int32_t vInit_initVulkan(struct vInit_graphicsStruct *graphicsPacket, struct window_window *window);
+int32_t vInit_createInstance(VkInstance *instance);
+int32_t vInit_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
+int32_t vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
+int32_t vInit_createDevice(VkDevice *device, struct vInit_queueIndices *queueIndices, struct vInit_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
+int32_t vInit_createSwapchain(VkSwapchainKHR *swapchain, struct vInit_swapchainDetails *swapchainDetails, struct vInit_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, struct vInit_queueIndices *queueIndices, VkDevice device);
+int32_t vInit_createImageViews(struct vInit_imageViewDetails *imageViewArray, const struct vInit_imageDetails *imageArray, VkDevice device, const VkFormat *swapchainImageFormat);
 
 //deletion functions
-void vulkan_deleteImageViews(struct vulkan_imageViewDetails *restrict imageViewArray, VkDevice device);
-void vulkan_deleteSwapchain(VkSwapchainKHR *swapchain, struct vulkan_imageDetails *imageArray, VkDevice device);
-void vulkan_deleteDevice(VkDevice *device);
-void vulkan_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
-void vulkan_deleteInstance(VkInstance *instance);
-void vulkan_destroyVulkan(struct vulkan_graphicsStruct *graphicsPacket);
+void vInit_deleteImageViews(struct vInit_imageViewDetails *restrict imageViewArray, VkDevice device);
+void vInit_deleteSwapchain(VkSwapchainKHR *swapchain, struct vInit_imageDetails *imageArray, VkDevice device);
+void vInit_deleteDevice(VkDevice *device);
+void vInit_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
+void vInit_deleteInstance(VkInstance *instance);
+void vInit_destroyVulkan(struct vInit_graphicsStruct *graphicsPacket);
 
 #endif

@@ -15,18 +15,18 @@
 
 /*------------------prototipes------------------*/
 
-//int32_t vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
-//void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
-//int32_t vGraph_drawFrame(struct vulkan_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline);
+//int32_t vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graphicsStruct *graphicsPacket);
+//void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graphicsStruct *graphicsPacket);
+//int32_t vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline);
 
-//void vGraph_waitForIdle(struct vulkan_graphicsStruct *graphicsPacket);
+//void vGraph_waitForIdle(struct vInit_graphicsStruct *graphicsPacket);
 
 /* window ->instance -> surface -> physicalDevice -> device -> Queue -> swapchain -> swapchainDetails -> images -> imageViews */
 /* renderPass */
 
 //statics
 
-static int32_t s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails);
+static int32_t s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, struct vInit_swapchainDetails *swapchainDetails);
 static void s_deletePipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device);
 
 static int32_t s_createShaderModule(VkShaderModule *shaderModule, const char *shaderFileName, VkDevice device);
@@ -38,10 +38,10 @@ static void s_deletePipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice de
 static int32_t s_createRenderPass(VkRenderPass *renderPass, VkDevice device, const VkFormat *const swapchainImageFormat);
 static void s_deleteRenderPass(VkRenderPass *renderPass, VkDevice device);
 
-static int32_t s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageViewDetails *imageViewArray, VkRenderPass renderPass);
-static void s_deleteFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device);//to change
+static int32_t s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, struct vInit_imageViewDetails *imageViewArray, VkRenderPass renderPass);
+static void s_deleteFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device);
 
-static int32_t s_createCommandPool(VkCommandPool *commandPool, VkDevice device);//to change
+static int32_t s_createCommandPool(VkCommandPool *commandPool, struct vInit_queueIndices *queueIndices, VkDevice device);//to change
 static void s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device);
 
 static int32_t s_allocateCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommandPool commandPool);
@@ -49,7 +49,7 @@ static int32_t s_allocateCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice 
 static int32_t s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);
 static void s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);//to change
 
-static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray);
+static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray);
 
 
 /*------------------    globals    ------------------*/
@@ -57,7 +57,7 @@ static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imag
 /*------------------implementations------------------*/
 
 int32_t
-vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
+vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graphicsStruct *graphicsPacket){
     if(s_createRenderPass(&(graphicsPipeline->renderPass), graphicsPacket->device, &(graphicsPacket->swapchainDetails.imageFormat))){
         fprintf(stderr, "Error: Creating renderPass\n");
         return 1;
@@ -72,7 +72,7 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_grap
         fprintf(stderr, "Error: Creating frame buffer\n");
         return 1;
     }
-    if(s_createCommandPool(&(graphicsPipeline->commandPool), graphicsPacket->device)){
+    if(s_createCommandPool(&(graphicsPipeline->commandPool), &(graphicsPacket->queueIndices), graphicsPacket->device)){
         fprintf(stderr, "Error: Creating command pool\n");
         return 1;
     }
@@ -88,7 +88,7 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_grap
 }
 
 void
-vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
+vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graphicsStruct *graphicsPacket){
     s_deleteSyncObjects(&(graphicsPipeline->syncObjects), graphicsPacket->device);
     s_deleteCommandPool(&(graphicsPipeline->commandPool), graphicsPacket->device);
     s_deleteFrameBuffer(&(graphicsPipeline->frameBufferArray), graphicsPacket->device);
@@ -97,12 +97,12 @@ vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_g
 }
 
 void
-vGraph_waitForIdle(struct vulkan_graphicsStruct *graphicsPacket){
+vGraph_waitForIdle(struct vInit_graphicsStruct *graphicsPacket){
     vkDeviceWaitIdle(graphicsPacket->device);
 }
 
 int32_t
-vGraph_drawFrame(struct vulkan_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline){
+vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline){
     
     vkWaitForFences(graphicsPacket->device, 1, &(graphicsPipeline->syncObjects.inFlightFence), VK_TRUE, UINT64_MAX);
     
@@ -156,7 +156,7 @@ vGraph_drawFrame(struct vulkan_graphicsStruct *graphicsPacket, struct vGraph_pip
 
 static
 int32_t
-s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails){
+s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, struct vInit_swapchainDetails *swapchainDetails){
     printf("Creating Pipeline\n");
     if(s_createShaderModule(&(graphicsPipeline->vertShaderModule), "res/shaders/shader.vert.spv", device)){
         return 1;
@@ -423,7 +423,7 @@ s_deleteRenderPass(VkRenderPass *renderPass, VkDevice device){
 
 static
 int32_t
-s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageViewDetails *imageViewArray, VkRenderPass renderPass){
+s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, struct vInit_imageViewDetails *imageViewArray, VkRenderPass renderPass){
     frameBufferArray->count = imageViewArray->count;
     frameBufferArray->frameBuffers = malloc(frameBufferArray->count*sizeof(VkFramebuffer));
     if(!frameBufferArray->frameBuffers){
@@ -456,22 +456,22 @@ static
 void 
 s_deleteFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device){
     for(int32_t iter=0; iter<frameBufferArray->count; iter++){
-        //printf("hola %d \n", iter);
         vkDestroyFramebuffer(device, *(frameBufferArray->frameBuffers+iter), NULL);
     }
     free(frameBufferArray->frameBuffers);
     frameBufferArray->frameBuffers = NULL;
+    frameBufferArray->count = 0;
 }
 
 static
 int32_t
-s_createCommandPool(VkCommandPool *commandPool, VkDevice device){
+s_createCommandPool(VkCommandPool *commandPool, struct vInit_queueIndices *queueIndices, VkDevice device){
     //tochange index;
     
     VkCommandPoolCreateInfo commandPoolCreateInfo = {};
     commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    commandPoolCreateInfo.queueFamilyIndex = 0;
+    commandPoolCreateInfo.queueFamilyIndex = queueIndices->presentQueue;
     
     if(vkCreateCommandPool(device, &commandPoolCreateInfo, NULL, commandPool) != VK_SUCCESS){
         fprintf(stderr, "Error: failed to create command pool\n");
@@ -484,7 +484,6 @@ s_createCommandPool(VkCommandPool *commandPool, VkDevice device){
 static
 void
 s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device){
-    //tochange frame buffer deletion function
     vkDestroyCommandPool(device, *commandPool, NULL);
     *commandPool = NULL;
 }
@@ -549,7 +548,7 @@ s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
 
 static
 int32_t 
-s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray){
+s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray){
     
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
