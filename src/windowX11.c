@@ -25,7 +25,7 @@ window_initWindow(struct window_window *windowParam, int32_t widthParam, int32_t
 
 int32_t 
 window_closeWindowEvent(struct window_window *windowParam){
-    return glfwWindowShouldClose(windowParam->window);
+    return !glfwWindowShouldClose(windowParam->window);
 }
 
 int32_t

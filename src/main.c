@@ -16,7 +16,7 @@ int main(){
     struct vulkan_graphicsStruct vulkanStruct = {};
     struct vGraph_pipeline vulkanPipeline = {};
     
-    if(window_initWindow(&window, 300, 300, "vulkanTest")){
+    if(window_initWindow(&window, 1200, 900, "vulkanTest")){
         fprintf(stderr, "[Window] Error: Creating the window\n");
         assert(0 && "Error creating window");
     }
@@ -40,10 +40,9 @@ int main(){
             fprintf(stderr, "[vGraphics] Error: Drawing triangle\n");
             assert(0 && "Error drawing triangle");
         }
-        sleep(1);
     }
     
-    //vkDeviceWaitIdle(gradevice);
+    vGraph_waitForIdle(&vulkanStruct);
     
     printf("------------------------------------------------\n\n------------------------------------------------\n");
     

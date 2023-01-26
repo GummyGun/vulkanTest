@@ -19,6 +19,8 @@
 //void vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket);
 //int32_t vGraph_drawFrame(struct vulkan_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline);
 
+//void vGraph_waitForIdle(struct vulkan_graphicsStruct *graphicsPacket);
+
 /* window ->instance -> surface -> physicalDevice -> device -> Queue -> swapchain -> swapchainDetails -> images -> imageViews */
 /* renderPass */
 
@@ -37,16 +39,15 @@ static int32_t s_createRenderPass(VkRenderPass *renderPass, VkDevice device, con
 static void s_deleteRenderPass(VkRenderPass *renderPass, VkDevice device);
 
 static int32_t s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, struct vulkan_imageViewDetails *imageViewArray, VkRenderPass renderPass);
-static void s_deleteFrameBuffer(VkRenderPass *renderPass, VkDevice device);
+static void s_deleteFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device);//to change
 
 static int32_t s_createCommandPool(VkCommandPool *commandPool, VkDevice device);//to change
-static void s_deleteCommandPool();//to change
+static void s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device);
 
-static int32_t s_createCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommandPool commandPool);
-static void s_deleteCommandBuffer();//to change
+static int32_t s_allocateCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommandPool commandPool);
 
 static int32_t s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);
-static void s_deleteSyncObjects();//to change
+static void s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);//to change
 
 static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vulkan_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray);
 
@@ -75,7 +76,7 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_grap
         fprintf(stderr, "Error: Creating command pool\n");
         return 1;
     }
-    if(s_createCommandBuffer(&(graphicsPipeline->commandBuffer), graphicsPacket->device, graphicsPipeline->commandPool)){
+    if(s_allocateCommandBuffer(&(graphicsPipeline->commandBuffer), graphicsPacket->device, graphicsPipeline->commandPool)){
         fprintf(stderr, "Error: Creating command buffer\n");
         return 1;
     }
@@ -88,12 +89,20 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_grap
 
 void
 vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vulkan_graphicsStruct *graphicsPacket){
-    s_deletePipeline(graphicsPipeline, (graphicsPacket->device));
+    s_deleteSyncObjects(&(graphicsPipeline->syncObjects), graphicsPacket->device);
+    s_deleteCommandPool(&(graphicsPipeline->commandPool), graphicsPacket->device);
+    s_deleteFrameBuffer(&(graphicsPipeline->frameBufferArray), graphicsPacket->device);
+    s_deletePipeline(graphicsPipeline, graphicsPacket->device);
+    s_deleteRenderPass(&(graphicsPipeline->renderPass), graphicsPacket->device);
+}
+
+void
+vGraph_waitForIdle(struct vulkan_graphicsStruct *graphicsPacket){
+    vkDeviceWaitIdle(graphicsPacket->device);
 }
 
 int32_t
 vGraph_drawFrame(struct vulkan_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline){
-    printf("drawing traingle\n");
     
     vkWaitForFences(graphicsPacket->device, 1, &(graphicsPipeline->syncObjects.inFlightFence), VK_TRUE, UINT64_MAX);
     
@@ -291,9 +300,14 @@ s_deletePipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device){
     graphicsPipeline->graphicsPipeline = NULL;
     
     s_deletePipelineLayout(&(graphicsPipeline->layout), device);
+    graphicsPipeline->layout = NULL;
+    
     s_deleteShaderModule(&(graphicsPipeline->vertShaderModule), device);
+    graphicsPipeline->vertShaderModule = NULL;
+    
     s_deleteShaderModule(&(graphicsPipeline->fragShaderModule), device);
-    s_deleteRenderPass(&(graphicsPipeline->renderPass), device);
+    graphicsPipeline->fragShaderModule = NULL;
+    
 }
 
 static
@@ -417,6 +431,7 @@ s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice
         return 1;
     }
     for(int32_t iter=0; iter<imageViewArray->count; iter++){
+        //printf("frame buffer Creation %d\n", imageViewArray->count);
         VkImageView attachments[] = {*((imageViewArray->imageViews)+iter)};
         
         VkFramebufferCreateInfo framebufferCreateInfo = {};
@@ -439,8 +454,13 @@ s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice
 
 static
 void 
-s_deleteFrameBuffer(VkRenderPass *renderPass, VkDevice device){
-    //tochange frame buffer deletion function
+s_deleteFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device){
+    for(int32_t iter=0; iter<frameBufferArray->count; iter++){
+        //printf("hola %d \n", iter);
+        vkDestroyFramebuffer(device, *(frameBufferArray->frameBuffers+iter), NULL);
+    }
+    free(frameBufferArray->frameBuffers);
+    frameBufferArray->frameBuffers = NULL;
 }
 
 static
@@ -463,13 +483,15 @@ s_createCommandPool(VkCommandPool *commandPool, VkDevice device){
 
 static
 void
-s_deleteCommandPool(){
+s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device){
     //tochange frame buffer deletion function
+    vkDestroyCommandPool(device, *commandPool, NULL);
+    *commandPool = NULL;
 }
 
 static
 int32_t
-s_createCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommandPool commandPool){
+s_allocateCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommandPool commandPool){
     
     VkCommandBufferAllocateInfo commandBufferCreateInfo = {};
     commandBufferCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -483,28 +505,29 @@ s_createCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommand
     }
     return 0;
 }
+
 static
 int32_t
 s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
-    VkSemaphoreCreateInfo semaphoreInfo = {};
-    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    VkSemaphoreCreateInfo semaphoreCreateInfo = {};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     
-    VkFenceCreateInfo fenceInfo = {};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    VkFenceCreateInfo fenceCreateInfo = {};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     
     
-    if(vkCreateSemaphore(device, &semaphoreInfo, NULL, &(syncObjects->imageAvailableSemaphore)) != VK_SUCCESS){
+    if(vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, &(syncObjects->imageAvailableSemaphore)) != VK_SUCCESS){
         fprintf(stderr, "Error: error creating imageAvailableSemaphore\n");
         return 1;
     }
     
-    if(vkCreateSemaphore(device, &semaphoreInfo, NULL, &(syncObjects->renderFinishedSemaphore)) != VK_SUCCESS){
+    if(vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, &(syncObjects->renderFinishedSemaphore)) != VK_SUCCESS){
         fprintf(stderr, "Error: error creating renderFinishedSemaphore\n");
         return 1;
     }
     
-    if(vkCreateFence(device, &fenceInfo, NULL, &(syncObjects->inFlightFence)) != VK_SUCCESS){
+    if(vkCreateFence(device, &fenceCreateInfo, NULL, &(syncObjects->inFlightFence)) != VK_SUCCESS){
         fprintf(stderr, "Error: error creating inFlightFence\n");
         return 1;
     }
@@ -514,11 +537,15 @@ s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
 
 static
 void
-s_deleteSyncObjects(){
+s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
+    vkDestroySemaphore(device, syncObjects->imageAvailableSemaphore, NULL);
+    vkDestroySemaphore(device, syncObjects->renderFinishedSemaphore, NULL);
+    vkDestroyFence(device, syncObjects->inFlightFence, NULL);
     
+    syncObjects->imageAvailableSemaphore = NULL;
+    syncObjects->renderFinishedSemaphore = NULL;
+    syncObjects->inFlightFence = NULL;
 }
-
-
 
 static
 int32_t 
