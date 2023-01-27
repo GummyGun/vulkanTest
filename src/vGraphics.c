@@ -6,8 +6,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 /*------------------defines------------------*/
+
+#define FRAMES_IN_FLIGHT 2
 
 /*------------------  enums  ------------------*/
 
@@ -44,7 +47,7 @@ static void s_deleteFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArr
 static int32_t s_createCommandPool(VkCommandPool *commandPool, struct vInit_queueIndices *queueIndices, VkDevice device);//to change
 static void s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device);
 
-static int32_t s_allocateCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommandPool commandPool);
+static int32_t s_allocateCommandBuffer(struct vGraph_commandBufferDetails *commandBufferArray, VkDevice device, VkCommandPool commandPool);
 
 static int32_t s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);
 static void s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);//to change
@@ -76,7 +79,7 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graph
         fprintf(stderr, "Error: Creating command pool\n");
         return 1;
     }
-    if(s_allocateCommandBuffer(&(graphicsPipeline->commandBuffer), graphicsPacket->device, graphicsPipeline->commandPool)){
+    if(s_allocateCommandBuffer(&(graphicsPipeline->commandBufferArray), graphicsPacket->device, graphicsPipeline->commandPool)){
         fprintf(stderr, "Error: Creating command buffer\n");
         return 1;
     }
@@ -111,8 +114,8 @@ vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipe
     uint32_t imageIndex;
     vkAcquireNextImageKHR(graphicsPacket->device, graphicsPacket->swapchain, UINT64_MAX, graphicsPipeline->syncObjects.imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
     
-    vkResetCommandBuffer(graphicsPipeline->commandBuffer, 0);
-    s_recordCommandBuffer(graphicsPipeline->commandBuffer, imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray));
+    vkResetCommandBuffer(*(graphicsPipeline->commandBufferArray.commandBuffers), 0);
+    s_recordCommandBuffer(*(graphicsPipeline->commandBufferArray.commandBuffers), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray));
     
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -124,7 +127,7 @@ vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipe
     submitInfo.pWaitDstStageMask = waitStages;
 
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &(graphicsPipeline->commandBuffer);
+    submitInfo.pCommandBuffers = (graphicsPipeline->commandBufferArray.commandBuffers);
     
     VkSemaphore signalSemaphores[] = {graphicsPipeline->syncObjects.renderFinishedSemaphore};
     submitInfo.signalSemaphoreCount = 1;
@@ -490,18 +493,26 @@ s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device){
 
 static
 int32_t
-s_allocateCommandBuffer(VkCommandBuffer *commandBuffer, VkDevice device, VkCommandPool commandPool){
+s_allocateCommandBuffer(struct vGraph_commandBufferDetails *commandBufferArray, VkDevice device, VkCommandPool commandPool){
+    commandBufferArray->commandBuffers=malloc(FRAMES_IN_FLIGHT*sizeof(VkCommandBuffer));
+    if(!commandBufferArray->commandBuffers){
+        fprintf(stderr, "Error: Malloc failed\n");
+        return 1;
+    }
+    commandBufferArray->count = FRAMES_IN_FLIGHT;
+    
     
     VkCommandBufferAllocateInfo commandBufferCreateInfo = {};
     commandBufferCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     commandBufferCreateInfo.commandPool = commandPool;
     commandBufferCreateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    commandBufferCreateInfo.commandBufferCount = 1;
+    commandBufferCreateInfo.commandBufferCount = commandBufferArray->count;
 
-    if (vkAllocateCommandBuffers(device, &commandBufferCreateInfo, commandBuffer) != VK_SUCCESS) {
-        fprintf(stderr, "Error: Failed to allocate command buffers!");
+    if(vkAllocateCommandBuffers(device, &commandBufferCreateInfo, commandBufferArray->commandBuffers) != VK_SUCCESS) {
+        fprintf(stderr, "Error: Failed to allocate command buffers!\n");
         return 1;
     }
+    
     return 0;
 }
 
