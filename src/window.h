@@ -13,13 +13,19 @@
 #ifdef WAY_PROT
 
 #include <wayland-client.h>
+#include "xdg-shell-client-protocol.h"
+
 #include <vulkan/vulkan_wayland.h>
 struct window_window{
     struct wl_display *display;
     struct wl_registry *registry;
     
     struct wl_compositor *compositor;
+    struct xdg_wm_base *xdgWmBase;
+
     struct wl_surface *surface;
+    struct xdg_surface *xdgSurface;
+    struct xdg_toplevel *xdgToplevel;
     
     int32_t width, height;
 };

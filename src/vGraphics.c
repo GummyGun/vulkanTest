@@ -204,6 +204,8 @@ s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, stru
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     
+    printf("extent size %d %d\n", swapchainDetails->extent.width, swapchainDetails->extent.height);
+    
     VkRect2D scissor = {};
     scissor.offset = (VkOffset2D){0, 0};
     scissor.extent = swapchainDetails->extent;
