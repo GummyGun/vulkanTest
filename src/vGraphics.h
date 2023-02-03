@@ -7,14 +7,33 @@
 #include <stdint.h>
 
 //structures
+
+struct vGraph_semaphoreDetails{
+    VkSemaphore *semaphores;
+    int32_t count;
+};
+
+struct vGraph_fenceDetails{
+    VkFence *fences;
+    int32_t count;
+};
+
 struct vGraph_syncObjects{
+    struct vGraph_semaphoreDetails imageAvailableSemaphoreArray;
     VkSemaphore imageAvailableSemaphore;
+    struct vGraph_semaphoreDetails renderFinishedSemaphoreArray;
     VkSemaphore renderFinishedSemaphore;
+    struct vGraph_fenceDetails inFlightFenceArray;
     VkFence inFlightFence;
 };
 
 struct vGraph_frameBufferDetails{
     VkFramebuffer *frameBuffers;
+    int32_t count;
+};
+
+struct vGraph_commandBufferDetails{
+    VkCommandBuffer *commandBuffers;
     int32_t count;
 };
 
@@ -27,7 +46,7 @@ struct vGraph_pipeline{
     struct vGraph_frameBufferDetails frameBufferArray;
     
     VkCommandPool commandPool;
-    VkCommandBuffer commandBuffer;
+    struct vGraph_commandBufferDetails commandBufferArray;
     
     struct vGraph_syncObjects syncObjects;
 };
