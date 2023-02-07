@@ -38,6 +38,8 @@ static void s_xdgSurfaceHandleConfigure(void *data, struct xdg_surface *surface,
 
 //defines for portability
 char *const extensionsWayland[] = {VK_KHR_SURFACE_EXTENSION_NAME,VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME};
+//{"VK_KHR_surface", "VK_KHR_wayland_surface"};
+//{VK_KHR_SURFACE_EXTENSION_NAME,VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME};
 const uint32_t extensionsWaylandCount = sizeof(extensionsWayland)/sizeof(int8_t*);
 
 

@@ -16,6 +16,8 @@ int main(){
     struct vInit_graphicsStruct vulkanStruct = {};
     struct vGraph_pipeline vulkanPipeline = {};
     
+    vulkanStruct.debugMode = 1;
+    
     if(window_initWindow(&window, 1200, 900, "vulkanTest")){
         fprintf(stderr, "[Window] Error: Creating the window\n");
         assert(0 && "Error creating window");
@@ -50,7 +52,7 @@ int main(){
     vInit_destroyVulkan(&vulkanStruct);
     window_destroyWindow(&window);
     
-    printf("%d frames were drawn\n", vulkanPipeline.totalFrames);
+    printf("%ld frames were drawn\n", vulkanPipeline.totalFrames);
     printf("Bye bye\n");
     
 }

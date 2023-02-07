@@ -26,7 +26,7 @@ struct vInit_swapchainSupportDetails{
 /* window ->instance -> surface -> physicalDevice -> queueIndices -> device -> queueHandles -> Queue -> swapchain -> swapchainDetails -> images -> imageViews */
 
 //int32_t vInit_initVulkan(struct vInit_graphicsStruct *graphicsPacket, struct window_window *window);
-//int32_t vInit_createInstance(VkInstance *instance);
+//int32_t vInit_createInstance(VkInstance *instance, int32_t debugMode);
 //int32_t vInit_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
 //int32_t vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
 //int32_t vInit_createDevice(VkDevice *device, struct vInit_queueIndices *queueIndices, struct vInit_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
@@ -45,8 +45,8 @@ struct vInit_swapchainSupportDetails{
 
 //statics
 
-
 static int32_t s_getExtensions(VkExtensionProperties **extensions, uint32_t *extensionsCount);
+static int32_t s_getEnabledExtensionNames(char ***extensionNameArray, int32_t *extensionCount, int32_t debugMode);
 static void s_freeExtensions(VkExtensionProperties **extensions);
 
 static int32_t s_getLayers(VkLayerProperties **layers, uint32_t *layersCount);
@@ -99,7 +99,7 @@ int32_t
 vInit_initVulkan(struct vInit_graphicsStruct *restrict const graphicsPacket, struct window_window *restrict const window){
     VkPhysicalDevice physicalDevice;
     
-    if(vInit_createInstance(&(graphicsPacket->instance))){
+    if(vInit_createInstance(&(graphicsPacket->instance), graphicsPacket->debugMode)){
         fprintf(stderr, "Error: Creating instance\n");
         return 1;
     }
@@ -141,7 +141,7 @@ vInit_destroyVulkan(struct vInit_graphicsStruct *graphicsPacket){
 }
 
 int32_t 
-vInit_createInstance(VkInstance *instance){
+vInit_createInstance(VkInstance *instance, int32_t debugMode){
     VkApplicationInfo appInfo={};
     VkInstanceCreateInfo imageViewCreateInfo={};
     VkResult vulkanResult;
@@ -157,6 +157,12 @@ vInit_createInstance(VkInstance *instance){
     imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     imageViewCreateInfo.pApplicationInfo = &appInfo;
     
+    uint32_t enabledExtensionsCount = 0;
+    char **enabledExtensions;
+    
+    s_getEnabledExtensionNames(&enabledExtensions, &enabledExtensionsCount, debugMode);
+    
+    
     uint32_t windowExtensionsCount = 0;
     const char **windowExtensions;
     
@@ -164,6 +170,9 @@ vInit_createInstance(VkInstance *instance){
         fprintf(stderr, "Error: Counldn't retrive extentions\n");
         return 1;
     }
+    
+    uint32_t windowExtensionsValidationCount = 0;
+    const char **windowValidationExtensions;
     
     //List window required extentions
     printf("Extentions required by Window Manager\n");
@@ -487,9 +496,53 @@ s_getExtensions(VkExtensionProperties **extensions, uint32_t *extensionsCount){
     vkEnumerateInstanceExtensionProperties(NULL, extensionsCount, NULL);
     *extensions = malloc((*extensionsCount)*sizeof(VkExtensionProperties));
     if(!(*extensions)){
+        fprintf(stderr, "Error: Malloc failed\n");
         return 1;
     }
     vkEnumerateInstanceExtensionProperties(NULL, extensionsCount, *extensions);
+    return 0;
+}
+
+static
+int32_t
+s_getEnabledExtensionNames(char ***extensionNamesArray, int32_t *extensionCount, int32_t debugMode){
+    uint32_t realExtensionCount;
+    uint32_t windowExtensionsCount = 0;
+    const char **windowExtensions;
+    if(window_getRequiredInstanceExtentions(&windowExtensions, &windowExtensionsCount)){
+        fprintf(stderr, "Error: Counldn't retrive extentions\n");
+        return 1;
+    }
+    
+    realExtensionCount = windowExtensionsCount;
+    if(debugMode){
+        realExtensionCount++;
+    }
+    
+    *extensionNamesArray = malloc((realExtensionCount+1)*sizeof(const char*));
+    if(!*extensionNamesArray){
+        fprintf(stderr, "Error: Malloc failed\n");
+        return 1;
+    }
+    
+    for(int32_t iter=0; iter<windowExtensionsCount; iter++){
+        *((*extensionNamesArray)+iter) = calloc(1,VK_MAX_EXTENSION_NAME_SIZE*sizeof(char));
+        strcpy(*((*extensionNamesArray)+iter), *(windowExtensions+iter));
+    }
+    
+    if(debugMode){
+        *((*extensionNamesArray)+realExtensionCount-1) = calloc(1,VK_MAX_EXTENSION_NAME_SIZE*sizeof(char));
+        strcpy(*((*extensionNamesArray)+realExtensionCount-1), VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        *((*extensionNamesArray)+realExtensionCount) = NULL;
+    }else{
+        *((*extensionNamesArray)+realExtensionCount-1) = NULL;
+    }
+    
+    for(int32_t iter=0; iter<realExtensionCount; iter++){
+        printf("%d TE::::::::: %s\n", realExtensionCount, *((*extensionNamesArray)+iter));
+        
+    }
+    
     return 0;
 }
 
@@ -506,6 +559,7 @@ s_getLayers(VkLayerProperties **layers, uint32_t *layersCount){
     vkEnumerateInstanceLayerProperties(layersCount, NULL);
     *layers = malloc((*layersCount)*sizeof(VkLayerProperties));
     if(!*layers){
+        fprintf(stderr, "Error: Malloc failed\n");
         return 1;
     }
     vkEnumerateInstanceLayerProperties(layersCount, *layers);
@@ -526,6 +580,7 @@ s_getPhysicalDevices(VkPhysicalDevice **PDs, uint32_t *PDsCount, VkInstance inst
     vkEnumeratePhysicalDevices(instance, PDsCount, NULL);
     *PDs = malloc((*PDsCount)*sizeof(VkPhysicalDevice));
     if(!*PDs){
+        fprintf(stderr, "Error: Malloc failed\n");
         return 1;
     }
     vkEnumeratePhysicalDevices(instance, PDsCount, *PDs);
@@ -626,6 +681,7 @@ s_getQueueFamiliesProperties(VkQueueFamilyProperties **queueProperties, uint32_t
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, queuePropertiesCount, NULL);
     *queueProperties = malloc(*queuePropertiesCount*sizeof(VkQueueFamilyProperties));
     if(!*queueProperties){
+        fprintf(stderr, "Error: Malloc failed\n");
         return 1;
     }
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, queuePropertiesCount, *queueProperties);
@@ -673,6 +729,7 @@ s_getDeviceExtentionProperties(VkExtensionProperties **extensionProperties, uint
     vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, extensionPropertiesCount, NULL);
     *extensionProperties = malloc(*extensionPropertiesCount*sizeof(VkExtensionProperties));
     if(!*extensionProperties){
+        fprintf(stderr, "Error: Malloc failed\n");
         return 1;
     }
     vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, extensionPropertiesCount, *extensionProperties);
@@ -755,6 +812,7 @@ s_getSwapchainSupport(struct vInit_swapchainSupportDetails *swapchainSupport, Vk
     if(swapchainSupport->surfaceFormatsCount){
         swapchainSupport->surfaceFormats = malloc(swapchainSupport->surfaceFormatsCount*sizeof(VkSurfaceFormatKHR));
         if(!(swapchainSupport->surfaceFormats)){
+            fprintf(stderr, "Error: Malloc failed\n");
             return 1;
         }
         vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &(swapchainSupport->surfaceFormatsCount), swapchainSupport->surfaceFormats);
@@ -763,6 +821,7 @@ s_getSwapchainSupport(struct vInit_swapchainSupportDetails *swapchainSupport, Vk
     if(swapchainSupport->surfaceFormatsCount){
         swapchainSupport->presentModes = malloc(swapchainSupport->presentModesCount*sizeof(VkPresentModeKHR));
         if(!(swapchainSupport->presentModes)){
+            fprintf(stderr, "Error: Malloc failed\n");
             return 1;
         }
         vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &(swapchainSupport->presentModesCount), swapchainSupport->presentModes);
@@ -845,6 +904,7 @@ s_getSwapchainImages(struct vInit_imageDetails *imageArray, VkDevice device, VkS
     vkGetSwapchainImagesKHR(device, swapchain, &(imageArray->count), NULL);
     imageArray->images = malloc(imageArray->count*sizeof(VkImage));
     if(!imageArray->images){
+        fprintf(stderr, "Error: Malloc failed\n");
         return 1;
     }
     vkGetSwapchainImagesKHR(device, swapchain, &(imageArray->count), imageArray->images);
