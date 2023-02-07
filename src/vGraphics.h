@@ -20,11 +20,8 @@ struct vGraph_fenceDetails{
 
 struct vGraph_syncObjects{
     struct vGraph_semaphoreDetails imageAvailableSemaphoreArray;
-    VkSemaphore imageAvailableSemaphore;
     struct vGraph_semaphoreDetails renderFinishedSemaphoreArray;
-    VkSemaphore renderFinishedSemaphore;
     struct vGraph_fenceDetails inFlightFenceArray;
-    VkFence inFlightFence;
 };
 
 struct vGraph_frameBufferDetails{
@@ -38,6 +35,9 @@ struct vGraph_commandBufferDetails{
 };
 
 struct vGraph_pipeline{
+    int32_t currentFrame;
+    uint64_t totalFrames;
+    
     VkShaderModule vertShaderModule;
     VkShaderModule fragShaderModule;
     VkRenderPass renderPass;

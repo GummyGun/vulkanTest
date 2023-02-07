@@ -50,6 +50,7 @@ int main(){
     vInit_destroyVulkan(&vulkanStruct);
     window_destroyWindow(&window);
     
+    printf("%d frames were drawn\n", vulkanPipeline.totalFrames);
     printf("Bye bye\n");
     
 }

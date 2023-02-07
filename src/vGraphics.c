@@ -65,12 +65,10 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graph
         fprintf(stderr, "Error: Creating renderPass\n");
         return 1;
     }
-    
     if(s_createPipeline(graphicsPipeline, graphicsPacket->device, &(graphicsPacket->swapchainDetails))){
         fprintf(stderr, "Error: Creating test pipeline\n");
         return 1;
     }
-    
     if(s_createFrameBuffer(&(graphicsPipeline->frameBufferArray), graphicsPacket->device, &(graphicsPacket->swapchainDetails), &(graphicsPacket->imageViewArray), graphicsPipeline->renderPass)){
         fprintf(stderr, "Error: Creating frame buffer\n");
         return 1;
@@ -107,34 +105,34 @@ vGraph_waitForIdle(struct vInit_graphicsStruct *graphicsPacket){
 int32_t
 vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipeline *graphicsPipeline){
     
-    vkWaitForFences(graphicsPacket->device, 1, &(graphicsPipeline->syncObjects.inFlightFence), VK_TRUE, UINT64_MAX);
+    vkWaitForFences(graphicsPacket->device, 1, (graphicsPipeline->syncObjects.inFlightFenceArray.fences)+graphicsPipeline->currentFrame, VK_TRUE, UINT64_MAX);
     
-    vkResetFences(graphicsPacket->device, 1, &(graphicsPipeline->syncObjects.inFlightFence));
+    vkResetFences(graphicsPacket->device, 1, (graphicsPipeline->syncObjects.inFlightFenceArray.fences)+graphicsPipeline->currentFrame);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(graphicsPacket->device, graphicsPacket->swapchain, UINT64_MAX, graphicsPipeline->syncObjects.imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+    vkAcquireNextImageKHR(graphicsPacket->device, graphicsPacket->swapchain, UINT64_MAX, *((graphicsPipeline->syncObjects.imageAvailableSemaphoreArray.semaphores)+graphicsPipeline->currentFrame), VK_NULL_HANDLE, &imageIndex);
     
-    vkResetCommandBuffer(*(graphicsPipeline->commandBufferArray.commandBuffers), 0);
-    s_recordCommandBuffer(*(graphicsPipeline->commandBufferArray.commandBuffers), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray));
+    vkResetCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), 0);
+    s_recordCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray));
     
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = {graphicsPipeline->syncObjects.imageAvailableSemaphore};
+    VkSemaphore waitSemaphores[] = {*((graphicsPipeline->syncObjects.imageAvailableSemaphoreArray.semaphores)+graphicsPipeline->currentFrame)};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
 
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = (graphicsPipeline->commandBufferArray.commandBuffers);
+    submitInfo.pCommandBuffers = ((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame);
     
-    VkSemaphore signalSemaphores[] = {graphicsPipeline->syncObjects.renderFinishedSemaphore};
+    VkSemaphore signalSemaphores[] = {*((graphicsPipeline->syncObjects.renderFinishedSemaphoreArray.semaphores)+graphicsPipeline->currentFrame)};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
     
-    if (vkQueueSubmit(graphicsPacket->queueHandles.graphicsQueue, 1, &submitInfo, graphicsPipeline->syncObjects.inFlightFence) != VK_SUCCESS) {
-        fprintf(stderr, "Error:t failed to submit draw command buffer!\n");
+    if (vkQueueSubmit(graphicsPacket->queueHandles.graphicsQueue, 1, &submitInfo, *((graphicsPipeline->syncObjects.inFlightFenceArray.fences)+graphicsPipeline->currentFrame)) != VK_SUCCESS) {
+        fprintf(stderr, "Error:T failed to submit draw command buffer!\n");
         return 1;
     }
     
@@ -153,6 +151,9 @@ vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipe
     presentInfo.pResults = NULL; // Optional
 
     vkQueuePresentKHR(graphicsPacket->queueHandles.presentQueue, &presentInfo);
+    
+    graphicsPipeline->currentFrame = (graphicsPipeline->currentFrame+1)%FRAMES_IN_FLIGHT;
+    graphicsPipeline->totalFrames++;
 
     return 0;
 }
@@ -479,7 +480,7 @@ s_createCommandPool(VkCommandPool *commandPool, struct vInit_queueIndices *queue
     commandPoolCreateInfo.queueFamilyIndex = queueIndices->presentQueue;
     
     if(vkCreateCommandPool(device, &commandPoolCreateInfo, NULL, commandPool) != VK_SUCCESS){
-        fprintf(stderr, "Error: failed to create command pool\n");
+        fprintf(stderr, "Error: Failed to create command pool\n");
         return 1;
     }
     
@@ -528,20 +529,33 @@ s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     
+    syncObjects->imageAvailableSemaphoreArray.semaphores = malloc(FRAMES_IN_FLIGHT*sizeof(VkSemaphore));
+    syncObjects->imageAvailableSemaphoreArray.count = FRAMES_IN_FLIGHT;
+    syncObjects->renderFinishedSemaphoreArray.semaphores = malloc(FRAMES_IN_FLIGHT*sizeof(VkSemaphore));
+    syncObjects->renderFinishedSemaphoreArray.count = FRAMES_IN_FLIGHT;
+    syncObjects->inFlightFenceArray.fences = malloc(FRAMES_IN_FLIGHT*sizeof(VkFence));
+    syncObjects->inFlightFenceArray.count = FRAMES_IN_FLIGHT;
     
-    if(vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, &(syncObjects->imageAvailableSemaphore)) != VK_SUCCESS){
-        fprintf(stderr, "Error: error creating imageAvailableSemaphore\n");
+    if(!syncObjects->imageAvailableSemaphoreArray.semaphores || !syncObjects->renderFinishedSemaphoreArray.semaphores || !syncObjects->inFlightFenceArray.fences){
+        fprintf(stderr, "Error: Malloc failed\n");
         return 1;
     }
     
-    if(vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, &(syncObjects->renderFinishedSemaphore)) != VK_SUCCESS){
-        fprintf(stderr, "Error: error creating renderFinishedSemaphore\n");
-        return 1;
-    }
     
-    if(vkCreateFence(device, &fenceCreateInfo, NULL, &(syncObjects->inFlightFence)) != VK_SUCCESS){
-        fprintf(stderr, "Error: error creating inFlightFence\n");
-        return 1;
+    for(int32_t iter=0; iter<FRAMES_IN_FLIGHT; iter++){
+        if(vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, ((syncObjects->imageAvailableSemaphoreArray.semaphores)+iter)) != VK_SUCCESS){
+            fprintf(stderr, "Error: Error creating imageAvailableSemaphore\n");
+            return 1;
+        }
+        if(vkCreateSemaphore(device, &semaphoreCreateInfo, NULL, ((syncObjects->renderFinishedSemaphoreArray.semaphores)+iter)) != VK_SUCCESS){
+            fprintf(stderr, "Error: Error creating renderFinishedSemaphore\n");
+            return 1;
+        }
+        if(vkCreateFence(device, &fenceCreateInfo, NULL, ((syncObjects->inFlightFenceArray.fences)+iter)) != VK_SUCCESS){
+            fprintf(stderr, "Error: Error creating inFlightFence\n");
+            return 1;
+        }
+        
     }
     
     return 0;
@@ -550,13 +564,24 @@ s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
 static
 void
 s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
-    vkDestroySemaphore(device, syncObjects->imageAvailableSemaphore, NULL);
-    vkDestroySemaphore(device, syncObjects->renderFinishedSemaphore, NULL);
-    vkDestroyFence(device, syncObjects->inFlightFence, NULL);
+    for(int32_t iter=0; iter<FRAMES_IN_FLIGHT; iter++){
+        vkDestroySemaphore(device, *((syncObjects->imageAvailableSemaphoreArray.semaphores)+iter), NULL);
+        vkDestroySemaphore(device, *((syncObjects->renderFinishedSemaphoreArray.semaphores)+iter), NULL);
+        vkDestroyFence(device, *((syncObjects->inFlightFenceArray.fences)+iter), NULL);
+    }
     
-    syncObjects->imageAvailableSemaphore = NULL;
-    syncObjects->renderFinishedSemaphore = NULL;
-    syncObjects->inFlightFence = NULL;
+    free(syncObjects->imageAvailableSemaphoreArray.semaphores);
+    free(syncObjects->renderFinishedSemaphoreArray.semaphores);
+    free(syncObjects->inFlightFenceArray.fences);
+    
+    syncObjects->imageAvailableSemaphoreArray.semaphores = NULL;
+    syncObjects->renderFinishedSemaphoreArray.semaphores = NULL;
+    syncObjects->inFlightFenceArray.fences = NULL;
+    
+    syncObjects->imageAvailableSemaphoreArray.count = 0;
+    syncObjects->renderFinishedSemaphoreArray.count = 0;
+    syncObjects->inFlightFenceArray.count = 0;
+    
 }
 
 static
@@ -607,7 +632,7 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
     vkCmdEndRenderPass(commandBuffer);
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-        fprintf(stderr, "Error: failed to record command buffer\n");
+        fprintf(stderr, "Error: Failed to record command buffer\n");
         return 1;
     }
     
