@@ -53,7 +53,7 @@ int32_t window_closeWindowEvent(struct window_window *windowParam);
 int32_t window_destroyWindow(struct window_window *windowParam);
 int32_t window_getRequiredInstanceExtentions(const char ***extensions, uint32_t *extensionsCount);
 int32_t window_getFrameBufferSize(struct window_window *window, int32_t *bufferWidth, int32_t *bufferHeight);
-void window_pollEvents();
+int32_t window_pollEvents(struct window_window *window);
 
 VkResult window_createSurface(VkSurfaceKHR *surface, struct window_window *windowParam, VkInstance instance);
 

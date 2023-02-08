@@ -27,6 +27,7 @@ struct vInit_swapchainSupportDetails{
 
 //int32_t vInit_initVulkan(struct vInit_graphicsStruct *graphicsPacket, struct window_window *window);
 //int32_t vInit_createInstance(VkInstance *instance, int32_t debugMode);
+//int32_t vInit_createDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t debugMode, VkInstance instance);
 //int32_t vInit_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
 //int32_t vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
 //int32_t vInit_createDevice(VkDevice *device, struct vInit_queueIndices *queueIndices, struct vInit_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
@@ -45,8 +46,12 @@ struct vInit_swapchainSupportDetails{
 
 //statics
 
+static VkResult s_vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger);
+static VKAPI_ATTR VkBool32 VKAPI_CALL s_debugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
+
 static int32_t s_getExtensions(VkExtensionProperties **extensions, uint32_t *extensionsCount);
-static int32_t s_getEnabledExtensionNames(char ***extensionNameArray, int32_t *extensionCount, int32_t debugMode);
+static int32_t s_getEnabledExtensionNames(char ***extensionNameArray, int32_t *extensionNamesCount, int32_t debugMode);
+static void s_freeEnabledExtensionNames(char ***extensionNameArray);
 static void s_freeExtensions(VkExtensionProperties **extensions);
 
 static int32_t s_getLayers(VkLayerProperties **layers, uint32_t *layersCount);
@@ -103,6 +108,10 @@ vInit_initVulkan(struct vInit_graphicsStruct *restrict const graphicsPacket, str
         fprintf(stderr, "Error: Creating instance\n");
         return 1;
     }
+    if(vInit_createDebugMessenger(&(graphicsPacket->debugMessenger), graphicsPacket->debugMode, graphicsPacket->instance)){
+        fprintf(stderr, "Error: Creating debug messenger\n");
+        return 1;
+    }
     if(vInit_createSurface(&(graphicsPacket->surface), graphicsPacket->instance, window)){
         fprintf(stderr, "Error: Creating the surface\n");
         return 1;
@@ -157,31 +166,20 @@ vInit_createInstance(VkInstance *instance, int32_t debugMode){
     imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     imageViewCreateInfo.pApplicationInfo = &appInfo;
     
-    uint32_t enabledExtensionsCount = 0;
-    char **enabledExtensions;
+    uint32_t enabledExtensionNamesCount = 0;
+    char **enabledExtensionNames;
     
-    s_getEnabledExtensionNames(&enabledExtensions, &enabledExtensionsCount, debugMode);
+    s_getEnabledExtensionNames(&enabledExtensionNames, &enabledExtensionNamesCount, debugMode);
     
-    
-    uint32_t windowExtensionsCount = 0;
-    const char **windowExtensions;
-    
-    if(window_getRequiredInstanceExtentions(&windowExtensions, &windowExtensionsCount)){
-        fprintf(stderr, "Error: Counldn't retrive extentions\n");
-        return 1;
-    }
-    
-    uint32_t windowExtensionsValidationCount = 0;
-    const char **windowValidationExtensions;
     
     //List window required extentions
-    printf("Extentions required by Window Manager\n");
-    for(int32_t iter=0; iter<windowExtensionsCount; iter++){
-        printf("\t%s\n", *(windowExtensions+iter));
+    printf("Extentions required by Window Manager and debug if apply\n");
+    for(int32_t iter=0; iter<enabledExtensionNamesCount; iter++){
+        printf("\t%s\n", *(enabledExtensionNames+iter));
     }
     
-    imageViewCreateInfo.enabledExtensionCount = windowExtensionsCount;
-    imageViewCreateInfo.ppEnabledExtensionNames = windowExtensions;
+    imageViewCreateInfo.enabledExtensionCount = enabledExtensionNamesCount;
+    imageViewCreateInfo.ppEnabledExtensionNames = (const char* const*)enabledExtensionNames;
     
     VkExtensionProperties *extensions;
     uint32_t extensionsCount;
@@ -223,6 +221,9 @@ vInit_createInstance(VkInstance *instance, int32_t debugMode){
         fprintf(stderr,"Error: Instance creation error %d\n", vulkanResult);
         return 1;
     }
+    
+    s_freeEnabledExtensionNames(&enabledExtensionNames);
+    
     return 0;
 }
 
@@ -235,10 +236,31 @@ vInit_deleteInstance(VkInstance *instance){
 }
 
 int32_t
+vInit_createDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t debugMode, VkInstance instance){
+    if(!debugMode){
+        return 0;
+    }
+    printf("debug messenger enabled\n");
+    
+    VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
+    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    createInfo.pfnUserCallback = s_debugLogCallback;
+    createInfo.pUserData = NULL; 
+    
+    if((s_vkCreateDebugUtilsMessengerEXT(instance, &createInfo, NULL, debugMessenger)) != VK_SUCCESS){
+        fprintf(stderr, "Error: Creating debug messenger\n");
+        return 1;
+    }
+    return 0;
+}
+
+int32_t
 vInit_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window){
     VkResult result;
     if((result = window_createSurface(surface, window, instance)) != VK_SUCCESS){
-        fprintf(stderr, "Error: Creating the surface Errco%d\n", result);
+        fprintf(stderr, "Error: Creating the surface Errco %d\n", result);
         return 1;
     }
     return 0;
@@ -469,7 +491,62 @@ vInit_deleteImageViews(struct vInit_imageViewDetails *restrict const imageViewAr
     imageViewArray->count = 0;
 }
 
-/* ----------------------- static methods ----------------------- */
+/* ============================== static methods ============================== */
+/*                                                                              */
+/*                                                                              */
+/*          _        _   _         __                  _   _                    */
+/*         | |      | | (_)       / _|                | | (_)                   */
+/*      ___| |_ __ _| |_ _  ___  | |_ _   _ _ __   ___| |_ _  ___  _ __  ___    */
+/*     / __| __/ _` | __| |/ __| |  _| | | | '_ \ / __| __| |/ _ \| '_ \/ __|   */
+/*     \__ \ || (_| | |_| | (__  | | | |_| | | | | (__| |_| | (_) | | | \__ \   */
+/*     |___/\__\__,_|\__|_|\___| |_|  \__,_|_| |_|\___|\__|_|\___/|_| |_|___/   */
+/*                                                                              */
+/*                                                                              */
+/*                                                                              */
+/* ============================== static methods ============================== */
+
+
+//official names of parameters only added the s_ too keep coherence
+static
+VkResult
+s_vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger){
+    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXTFunc = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"); 
+    //printf("%p\n", vkCreateDebugUtilsMessengerEXTFunc);
+    if(vkCreateDebugUtilsMessengerEXTFunc != NULL) {
+        return vkCreateDebugUtilsMessengerEXTFunc(instance, pCreateInfo, pAllocator, pMessenger);
+    }else{
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+}
+
+static
+VkResult
+s_vkDestroyDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger){
+    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXTFunc = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"); 
+    //printf("%p\n", vkCreateDebugUtilsMessengerEXTFunc);
+    if(vkCreateDebugUtilsMessengerEXTFunc != NULL) {
+        return vkCreateDebugUtilsMessengerEXTFunc(instance, pCreateInfo, pAllocator, pMessenger);
+    }else{
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+}
+
+
+static 
+VKAPI_ATTR VkBool32 VKAPI_CALL
+s_debugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData){
+    switch(messageSeverity) {
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:{
+            fprintf(stderr, "\\\\\\\\-------%s\n", pCallbackData->pMessage);
+            break;
+        }
+        default:{
+            //fprintf(stderr, "test message\n");
+        }
+    }    
+    
+    return VK_FALSE;
+}
 
 static
 int32_t
@@ -505,7 +582,7 @@ s_getExtensions(VkExtensionProperties **extensions, uint32_t *extensionsCount){
 
 static
 int32_t
-s_getEnabledExtensionNames(char ***extensionNamesArray, int32_t *extensionCount, int32_t debugMode){
+s_getEnabledExtensionNames(char ***extensionNamesArray, int32_t *extensionNamesCount, int32_t debugMode){
     uint32_t realExtensionCount;
     uint32_t windowExtensionsCount = 0;
     const char **windowExtensions;
@@ -537,13 +614,20 @@ s_getEnabledExtensionNames(char ***extensionNamesArray, int32_t *extensionCount,
     }else{
         *((*extensionNamesArray)+realExtensionCount-1) = NULL;
     }
-    
-    for(int32_t iter=0; iter<realExtensionCount; iter++){
-        printf("%d TE::::::::: %s\n", realExtensionCount, *((*extensionNamesArray)+iter));
-        
-    }
-    
+    *extensionNamesCount = realExtensionCount;
     return 0;
+}
+
+static
+void
+s_freeEnabledExtensionNames(char ***extensionNameArray){
+    int32_t iter = 0;
+    while(*((*extensionNameArray)+iter)){
+        free(*((*extensionNameArray)+iter));
+        iter++;
+    }
+    free(*extensionNameArray);
+    *extensionNameArray = NULL;
 }
 
 static 

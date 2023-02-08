@@ -38,6 +38,7 @@ struct vInit_graphicsStruct{
     int32_t debugMode;
     
     VkInstance instance;
+    VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
     VkPhysicalDevice physicalDevice;
     VkDevice device;
@@ -56,6 +57,7 @@ struct vInit_graphicsStruct{
 
 int32_t vInit_initVulkan(struct vInit_graphicsStruct *graphicsPacket, struct window_window *window);
 int32_t vInit_createInstance(VkInstance *instance, int32_t debugMode);
+int32_t vInit_createDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t debugMode, VkInstance instance);
 int32_t vInit_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
 int32_t vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
 int32_t vInit_createDevice(VkDevice *device, struct vInit_queueIndices *queueIndices, struct vInit_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);

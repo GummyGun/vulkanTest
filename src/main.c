@@ -28,7 +28,6 @@ int main(){
         assert(0 && "Error creating vulkan");
     }
     
-    
     if(vGraph_initPipeline(&vulkanPipeline, &vulkanStruct)){
         fprintf(stderr, "[vGraphics] Error: Creating pipeline\n");
         assert(0 && "Error creating pipeline");
@@ -37,7 +36,9 @@ int main(){
     printf("------------------------------------------------\n\n------------------------------------------------\n");
     
     while(window_closeWindowEvent(&window)){
-        window_pollEvents();
+        if(window_pollEvents(&window)){
+            break;
+        }
         if(vGraph_drawFrame(&vulkanStruct, &vulkanPipeline)){
             fprintf(stderr, "[vGraphics] Error: Drawing triangle\n");
             assert(0 && "Error drawing triangle");

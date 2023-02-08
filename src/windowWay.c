@@ -141,9 +141,10 @@ window_getFrameBufferSize(struct window_window *window, int32_t *bufferWidth, in
     return 1;
 }
 
-void
-window_pollEvents(){
+int32_t
+window_pollEvents(struct window_window *window){
     //event loop events
+    return 0;
 }
 
 VkResult
