@@ -531,7 +531,18 @@ s_vkDestroyDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMesseng
     }
 }
 
+static 
+VKAPI_ATTR VkBool32 VKAPI_CALL
+s_debugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData){
+    
+    if(messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        fprintf(stderr, "\n\n\t\t\t-------%s\n", pCallbackData->pMessage);
+    }    
+    
+    return VK_FALSE;
+}
 
+/*
 static 
 VKAPI_ATTR VkBool32 VKAPI_CALL
 s_debugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData){
@@ -547,6 +558,7 @@ s_debugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDeb
     
     return VK_FALSE;
 }
+*/
 
 static
 int32_t
@@ -602,7 +614,7 @@ s_getEnabledExtensionNames(char ***extensionNamesArray, int32_t *extensionNamesC
         return 1;
     }
     
-    for(int32_t iter=0; iter<windowExtensionsCount; iter++){
+    for(int32_t iter=0; iter<=windowExtensionsCount; iter++){
         *((*extensionNamesArray)+iter) = calloc(1,VK_MAX_EXTENSION_NAME_SIZE*sizeof(char));
         strcpy(*((*extensionNamesArray)+iter), *(windowExtensions+iter));
     }
@@ -612,9 +624,10 @@ s_getEnabledExtensionNames(char ***extensionNamesArray, int32_t *extensionNamesC
         strcpy(*((*extensionNamesArray)+realExtensionCount-1), VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         *((*extensionNamesArray)+realExtensionCount) = NULL;
     }else{
-        *((*extensionNamesArray)+realExtensionCount-1) = NULL;
+        *((*extensionNamesArray)+realExtensionCount) = NULL;
     }
     *extensionNamesCount = realExtensionCount;
+    
     return 0;
 }
 
