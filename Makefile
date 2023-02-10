@@ -1,4 +1,4 @@
-target = X11
+target = Way
 sendIp = $(TESTIP)
 
 TMP = tmps
