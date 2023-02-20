@@ -1,6 +1,8 @@
 #!/bin/bash
+parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+cd "$parent_path"
 
-/home/gumgun/VulkanSDK/installDebug/bin/glslc "$1/$2/"shader.frag -o "$1/$2/"shader.frag.spv
-/home/gumgun/VulkanSDK/installDebug/bin/glslc "$1/$2/"shader.vert -o "$1/$2/"shader.vert.spv
+/home/gumgun/VulkanSDK/installDebug/bin/glslc ../res/shaders/shader.frag -o ../res/shaders/shader.frag.spv
+/home/gumgun/VulkanSDK/installDebug/bin/glslc ../res/shaders/shader.vert -o ../res/shaders/shader.vert.spv
 
 
