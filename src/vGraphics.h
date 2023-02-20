@@ -1,7 +1,7 @@
 #ifndef __GUM__VULKAN__VGRAPHICS__
 #define __GUM__VULKAN__VGRAPHICS__
 
-#include "vulkan.h"
+#include "vInit.h"
 
 #include <vulkan/vulkan.h>
 #include <stdint.h>

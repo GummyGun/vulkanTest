@@ -4,7 +4,7 @@
 #include <assert.h>
 
 #include "window.h"
-#include "vulkan.h"
+#include "vInit.h"
 #include "vGraphics.h"
 
 
@@ -57,3 +57,4 @@ int main(){
     printf("Bye bye\n");
     
 }
+
