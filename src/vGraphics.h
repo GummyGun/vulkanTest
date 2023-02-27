@@ -5,6 +5,8 @@
 
 #include <vulkan/vulkan.h>
 #include <stdint.h>
+#include <cglm/vec2.h>
+#include <cglm/vec3.h>
 
 //structures
 
@@ -49,6 +51,11 @@ struct vGraph_pipeline{
     struct vGraph_commandBufferDetails commandBufferArray;
     
     struct vGraph_syncObjects syncObjects;
+};
+
+struct vGraph_vertex{
+    vec2 position;
+    vec3 color;
 };
 
 //functions

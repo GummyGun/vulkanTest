@@ -57,6 +57,13 @@ static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imag
 
 /*------------------    globals    ------------------*/
 
+static const struct vGraph_vertex vertexArray[] = 
+{
+    {{0.0f, -0.5f},{1.0f, 0.0f, 0.0f}}, 
+    {{0.5f, 0.5f},{0.0f, 1.0f, 0.0f}}, 
+    {{-0.5f, 0.5f},{0.0f, 0.0f, 1.0f}}
+};
+
 /*------------------implementations------------------*/
 
 /* ================================= extern methods ================================== */
@@ -667,3 +674,13 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
     return 0;
 }
 
+static
+int32_t
+getBindingDescription(VkVertexInputBindingDescription *vertInputBindDescription){
+    VkVertexInputBindingDescription bindingDescription = {};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(struct vGraph_vertex);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    *vertInputBindDescription = bindingDescription;
+    return 0;
+}
