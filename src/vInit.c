@@ -41,13 +41,16 @@ struct vInit_swapchainSupportDetails{
 //void vInit_deleteSwapchain(VkSwapchainKHR *swapchain, struct vInit_imageDetails *imageArray, VkDevice device);
 //void vInit_deleteDevice(VkDevice *device);
 //void vInit_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
+//void vInit_deleteDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t debugMode, VkInstance instance);
 //void vInit_deleteInstance(VkInstance *instance);
 //void vInit_destroyVulkan(struct vInit_graphicsStruct *graphicsPacket);
 
 //statics
 
 static VkResult s_vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger);
-static VKAPI_ATTR VkBool32 VKAPI_CALL s_debugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
+static VkResult s_vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator);
+static VKAPI_ATTR VkBool32 VKAPI_CALL s_debugLogCallbackWarning(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
+static VKAPI_ATTR VkBool32 VKAPI_CALL s_debugLogCallbackInfo(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
 
 static int32_t s_getExtensions(VkExtensionProperties **extensions, uint32_t *extensionsCount);
 static int32_t s_getEnabledExtensionNames(char ***extensionNameArray, int32_t *extensionNamesCount, int32_t debugMode);
@@ -159,6 +162,7 @@ vInit_destroyVulkan(struct vInit_graphicsStruct *graphicsPacket){
     vInit_deleteSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->imageArray), graphicsPacket->device);
     vInit_deleteDevice(&(graphicsPacket->device));
     vInit_deleteSurface(&(graphicsPacket->surface), graphicsPacket->instance);
+    vInit_deleteDebugMessenger(&(graphicsPacket->debugMessenger), graphicsPacket->debugMode, graphicsPacket->instance);
     vInit_deleteInstance(&(graphicsPacket->instance));
 }
 
@@ -240,7 +244,6 @@ vInit_createInstance(VkInstance *instance, int32_t debugMode){
     return 0;
 }
 
-
 void 
 vInit_deleteInstance(VkInstance *instance){
     printf("deleting the instance\n");
@@ -251,6 +254,7 @@ vInit_deleteInstance(VkInstance *instance){
 int32_t
 vInit_createDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t debugMode, VkInstance instance){
     if(!debugMode){
+        printf("No debug\n");
         return 0;
     }
     printf("debug messenger enabled\n");
@@ -259,7 +263,7 @@ vInit_createDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t deb
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
     createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = s_debugLogCallback;
+    createInfo.pfnUserCallback = s_debugLogCallbackInfo;
     createInfo.pUserData = NULL; 
     
     if((s_vkCreateDebugUtilsMessengerEXT(instance, &createInfo, NULL, debugMessenger)) != VK_SUCCESS){
@@ -267,6 +271,16 @@ vInit_createDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t deb
         return 1;
     }
     return 0;
+}
+
+void
+vInit_deleteDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t debugMode, VkInstance instance){
+    if(!debugMode){
+        printf("Non Debug\n");
+        return;
+    }
+    s_vkDestroyDebugUtilsMessengerEXT(instance, *debugMessenger, NULL);
+    *debugMessenger = (VkDebugUtilsMessengerEXT){0};
 }
 
 int32_t
@@ -522,7 +536,7 @@ vInit_deleteImageViews(struct vInit_imageViewDetails *restrict const imageViewAr
 static
 VkResult
 s_vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger){
-    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXTFunc = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"); 
+    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXTFunc = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"); 
     //printf("%p\n", vkCreateDebugUtilsMessengerEXTFunc);
     if(vkCreateDebugUtilsMessengerEXTFunc != NULL) {
         return vkCreateDebugUtilsMessengerEXTFunc(instance, pCreateInfo, pAllocator, pMessenger);
@@ -533,11 +547,12 @@ s_vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessenge
 
 static
 VkResult
-s_vkDestroyDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger){
-    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXTFunc = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"); 
+s_vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator){
+    PFN_vkDestroyDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXTFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"); 
     //printf("%p\n", vkCreateDebugUtilsMessengerEXTFunc);
     if(vkCreateDebugUtilsMessengerEXTFunc != NULL) {
-        return vkCreateDebugUtilsMessengerEXTFunc(instance, pCreateInfo, pAllocator, pMessenger);
+        vkCreateDebugUtilsMessengerEXTFunc(instance, messenger, pAllocator);
+        return 0;
     }else{
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
@@ -545,12 +560,23 @@ s_vkDestroyDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMesseng
 
 static 
 VKAPI_ATTR VkBool32 VKAPI_CALL
-s_debugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData){
+s_debugLogCallbackWarning(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData){
     
     if(messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         fprintf(stderr, "\n\n\t\t\t-------%s\n", pCallbackData->pMessage);
     }    
     
+    return VK_FALSE;
+}
+
+static 
+VKAPI_ATTR VkBool32 VKAPI_CALL
+s_debugLogCallbackInfo(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData){
+    if(messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
+        fprintf(stderr, "---info---\n%s\n---info---\n", pCallbackData->pMessage);
+    }else if(messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        fprintf(stderr, "=====warning=====\n\t%s\n=====warning=====\n", pCallbackData->pMessage);
+    }    
     return VK_FALSE;
 }
 

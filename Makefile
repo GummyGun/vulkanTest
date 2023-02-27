@@ -1,4 +1,4 @@
-target = Way
+target = X11
 sendIp = $(TESTIP)
 
 TMP = tmps
@@ -20,8 +20,7 @@ all_DEPS = $(addprefix $(DEP)/, $(files:.c=.d))
 .SECONDEXPANSION:
 
 compiler = $(compiler$(target))
-compilerWay = $(CC)
-compilerX11 = gcc
+compilerWay = $(CC) compilerX11 = gcc
 
 defineFlags = $(define$(target)Flags)
 defineWayFlags = -D WAY_PROT
@@ -84,6 +83,8 @@ send:
 	scp $(BLD)/$(EXE).out root@$(sendIp):~
 
 getBld:
+	@echo "----------------------------------------------"
+	@echo "target $(target): "
 	@echo "----------------------------------------------"
 	@echo "defines $(defineFlags)"
 	@echo "----------------------------------------------"
