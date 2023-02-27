@@ -69,6 +69,7 @@ void vInit_deleteImageViews(struct vInit_imageViewDetails *restrict imageViewArr
 void vInit_deleteSwapchain(VkSwapchainKHR *swapchain, struct vInit_imageDetails *imageArray, VkDevice device);
 void vInit_deleteDevice(VkDevice *device);
 void vInit_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
+void vInit_deleteDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, VkInstance instance);
 void vInit_deleteInstance(VkInstance *instance);
 void vInit_destroyVulkan(struct vInit_graphicsStruct *graphicsPacket);
 
