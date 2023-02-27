@@ -41,12 +41,14 @@ struct vInit_swapchainSupportDetails{
 //void vInit_deleteSwapchain(VkSwapchainKHR *swapchain, struct vInit_imageDetails *imageArray, VkDevice device);
 //void vInit_deleteDevice(VkDevice *device);
 //void vInit_deleteSurface(VkSurfaceKHR *surface, VkInstance instance);
+//void vInit_deleteDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, VkInstance instance);
 //void vInit_deleteInstance(VkInstance *instance);
 //void vInit_destroyVulkan(struct vInit_graphicsStruct *graphicsPacket);
 
 //statics
 
 static VkResult s_vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger);
+static VkResult s_vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator);
 static VKAPI_ATTR VkBool32 VKAPI_CALL s_debugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
 
 static int32_t s_getExtensions(VkExtensionProperties **extensions, uint32_t *extensionsCount);
@@ -159,6 +161,7 @@ vInit_destroyVulkan(struct vInit_graphicsStruct *graphicsPacket){
     vInit_deleteSwapchain(&(graphicsPacket->swapchain), &(graphicsPacket->imageArray), graphicsPacket->device);
     vInit_deleteDevice(&(graphicsPacket->device));
     vInit_deleteSurface(&(graphicsPacket->surface), graphicsPacket->instance);
+    vInit_deleteDebugMessenger(&(graphicsPacket->debugMessenger), graphicsPacket->instance);
     vInit_deleteInstance(&(graphicsPacket->instance));
 }
 
@@ -240,7 +243,6 @@ vInit_createInstance(VkInstance *instance, int32_t debugMode){
     return 0;
 }
 
-
 void 
 vInit_deleteInstance(VkInstance *instance){
     printf("deleting the instance\n");
@@ -267,6 +269,12 @@ vInit_createDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t deb
         return 1;
     }
     return 0;
+}
+
+void
+vInit_deleteDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, VkInstance instance){
+    s_vkDestroyDebugUtilsMessengerEXT(instance, *debugMessenger, NULL);
+    *debugMessenger = (VkDebugUtilsMessengerEXT){0};
 }
 
 int32_t
@@ -522,7 +530,7 @@ vInit_deleteImageViews(struct vInit_imageViewDetails *restrict const imageViewAr
 static
 VkResult
 s_vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger){
-    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXTFunc = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"); 
+    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXTFunc = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"); 
     //printf("%p\n", vkCreateDebugUtilsMessengerEXTFunc);
     if(vkCreateDebugUtilsMessengerEXTFunc != NULL) {
         return vkCreateDebugUtilsMessengerEXTFunc(instance, pCreateInfo, pAllocator, pMessenger);
@@ -533,11 +541,12 @@ s_vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessenge
 
 static
 VkResult
-s_vkDestroyDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger){
-    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXTFunc = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"); 
+s_vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator){
+    PFN_vkDestroyDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXTFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"); 
     //printf("%p\n", vkCreateDebugUtilsMessengerEXTFunc);
     if(vkCreateDebugUtilsMessengerEXTFunc != NULL) {
-        return vkCreateDebugUtilsMessengerEXTFunc(instance, pCreateInfo, pAllocator, pMessenger);
+        vkCreateDebugUtilsMessengerEXTFunc(instance, messenger, pAllocator);
+        return 0;
     }else{
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
