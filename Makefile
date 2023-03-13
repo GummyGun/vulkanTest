@@ -70,6 +70,9 @@ clean:
 	rm -f $(DEP)/*
 	rm -f $(BLD)/$(EXE).out
 
+cleanSh:
+	rm -f $(SPV)/*.spv
+
 genXDG:
 	@echo "compiling for wayland"
 

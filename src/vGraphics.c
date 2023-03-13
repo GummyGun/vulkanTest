@@ -47,6 +47,10 @@ static void s_deleteFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArr
 static int32_t s_createCommandPool(VkCommandPool *commandPool, struct vInit_queueIndices *queueIndices, VkDevice device);//to change
 static void s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device);
 
+static int32_t s_createVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device);
+static void s_deleteVertexBuffer();
+static int32_t s_findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags memoryProperties, const VkPhysicalDeviceMemoryProperties *const PDMemProperties);
+    
 static int32_t s_allocateCommandBuffer(struct vGraph_commandBufferDetails *commandBufferArray, VkDevice device, VkCommandPool commandPool);
 
 static int32_t s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);
@@ -63,6 +67,8 @@ static const struct vGraph_vertex vertexArray[] =
     {{0.5f, 0.5f},{0.0f, 1.0f, 0.0f}}, 
     {{-0.5f, 0.5f},{0.0f, 0.0f, 1.0f}}
 };
+static const int32_t vertexArrayCount = sizeof(vertexArray)/sizeof(struct vGraph_vertex);
+static const int32_t vertexSize = sizeof(struct vGraph_vertex);
 
 /*------------------implementations------------------*/
 
@@ -96,6 +102,10 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graph
     }
     if(s_createCommandPool(&(graphicsPipeline->commandPool), &(graphicsPacket->queueIndices), graphicsPacket->device)){
         fprintf(stderr, "Error: Creating command pool\n");
+        return 1;
+    }
+    if(s_createVertexBuffer(&(graphicsPipeline->vertexBuffer), &(graphicsPipeline->vertexBufferMemory), &(graphicsPacket->PDMemProperties),graphicsPacket->device)){
+        fprintf(stderr, "Error: Creating vertex buffer\n");
         return 1;
     }
     if(s_allocateCommandBuffer(&(graphicsPipeline->commandBufferArray), graphicsPacket->device, graphicsPipeline->commandPool)){
@@ -531,6 +541,55 @@ s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device){
 
 static
 int32_t
+s_createVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device){
+    VkBufferCreateInfo vertexBufferCreateInfo = {};
+    vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    vertexBufferCreateInfo.size = vertexSize*vertexArrayCount;
+    vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    vertexBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    
+    //printf("vertexNodeSize %d\nvertexCount %d\n", vertexSize, vertexArrayCount);
+    if(vkCreateBuffer(device, &vertexBufferCreateInfo, NULL, vertexBuffer) != VK_SUCCESS){
+        fprintf(stderr, "Error: Error creating vertex buffer\n");
+        return 1;
+    }
+    VkMemoryRequirements memoryRequirements = {};
+    vkGetBufferMemoryRequirements(device, *vertexBuffer, &memoryRequirements);
+    
+    VkMemoryAllocateInfo memoryAllocationInfo = {};
+    memoryAllocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocationInfo.allocationSize = memoryRequirements.size;
+    memoryAllocationInfo.memoryTypeIndex = s_findMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, PDMemProperties);
+    
+    if(vkAllocateMemory(device, &memoryAllocationInfo, NULL, vertexBufferMemory) != VK_SUCCESS){
+        fprintf(stderr, "Error: Error allocating vertex buffer memory\n");
+        return 1;
+    }
+    
+    vkBindBufferMemory(device, *vertexBuffer, *vertexBufferMemory, 0);
+    
+    return 0;
+}
+
+static 
+void 
+s_deleteVertexBuffer(){
+    
+}
+
+static 
+int32_t
+s_findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags memoryProperties, const VkPhysicalDeviceMemoryProperties *const PDMemProperties){
+    for(int32_t iter=0; iter<PDMemProperties->memoryTypeCount; iter++){
+        if((typeFilter & (1<<iter)) && (((PDMemProperties->memoryTypes)+iter)->propertyFlags & memoryProperties) == memoryProperties){
+            return iter;
+        }
+    }
+    return -1;
+}
+
+static
+int32_t
 s_allocateCommandBuffer(struct vGraph_commandBufferDetails *commandBufferArray, VkDevice device, VkCommandPool commandPool){
     commandBufferArray->commandBuffers=malloc(FRAMES_IN_FLIGHT*sizeof(VkCommandBuffer));
     if(!commandBufferArray->commandBuffers){
@@ -676,7 +735,7 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
 
 static
 int32_t
-getBindingDescription(VkVertexInputBindingDescription *vertInputBindDescription){
+s_getBindingDescription(VkVertexInputBindingDescription *vertInputBindDescription){
     VkVertexInputBindingDescription bindingDescription = {};
     bindingDescription.binding = 0;
     bindingDescription.stride = sizeof(struct vGraph_vertex);

@@ -41,6 +41,7 @@ struct vInit_graphicsStruct{
     VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
     VkPhysicalDevice physicalDevice;
+    VkPhysicalDeviceMemoryProperties PDMemProperties;
     VkDevice device;
     
     struct vInit_queueIndices queueIndices;
@@ -59,7 +60,7 @@ int32_t vInit_initVulkan(struct vInit_graphicsStruct *graphicsPacket, struct win
 int32_t vInit_createInstance(VkInstance *instance, int32_t debugMode);
 int32_t vInit_createDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t debugMode, VkInstance instance);
 int32_t vInit_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
-int32_t vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
+int32_t vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkPhysicalDeviceMemoryProperties *PDMemProperties, VkInstance instance, VkSurfaceKHR surface);
 int32_t vInit_createDevice(VkDevice *device, struct vInit_queueIndices *queueIndices, struct vInit_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 int32_t vInit_createSwapchain(VkSwapchainKHR *swapchain, struct vInit_swapchainDetails *swapchainDetails, struct vInit_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, struct vInit_queueIndices *queueIndices, VkDevice device);
 int32_t vInit_createImageViews(struct vInit_imageViewDetails *imageViewArray, const struct vInit_imageDetails *imageArray, VkDevice device, const VkFormat *swapchainImageFormat);

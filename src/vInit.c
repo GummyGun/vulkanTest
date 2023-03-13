@@ -29,7 +29,7 @@ struct vInit_swapchainSupportDetails{
 //int32_t vInit_createInstance(VkInstance *instance, int32_t debugMode);
 //int32_t vInit_createDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t debugMode, VkInstance instance);
 //int32_t vInit_createSurface(VkSurfaceKHR *surface, VkInstance instance, struct window_window *window);
-//int32_t vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface);
+//int32_t vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkPhysicalDeviceMemoryProperties *PDMemProperties, VkInstance instance, VkSurfaceKHR surface);
 //int32_t vInit_createDevice(VkDevice *device, struct vInit_queueIndices *queueIndices, struct vInit_queueHandles *queueHandles, VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice);
 //int32_t vInit_createSwapchain(VkSwapchainKHR *swapchain, struct vInit_swapchainDetails *swapchainDetails, struct vInit_imageDetails *imageDetails, struct window_window *window, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, struct vInit_queueIndices *queueIndices, VkDevice device);
 //int32_t vInit_createImageViews(struct vInit_imageViewDetails *imageViewArray, const struct vInit_imageDetails *imageArray, VkDevice device, const VkFormat *swapchainImageFormat);
@@ -132,7 +132,7 @@ vInit_initVulkan(struct vInit_graphicsStruct *restrict const graphicsPacket, str
         fprintf(stderr, "Error: Creating the surface\n");
         return 1;
     }
-    if(vInit_selectPhysicalDevice(&(graphicsPacket->physicalDevice), graphicsPacket->instance, graphicsPacket->surface)){
+    if(vInit_selectPhysicalDevice(&(graphicsPacket->physicalDevice), &(graphicsPacket->PDMemProperties), graphicsPacket->instance, graphicsPacket->surface)){
         fprintf(stderr, "Error: Chossing physical device\n");
         return 1;
     }
@@ -263,7 +263,7 @@ vInit_createDebugMessenger(VkDebugUtilsMessengerEXT *debugMessenger, int32_t deb
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
     createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = s_debugLogCallbackInfo;
+    createInfo.pfnUserCallback = s_debugLogCallbackWarning;
     createInfo.pUserData = NULL; 
     
     if((s_vkCreateDebugUtilsMessengerEXT(instance, &createInfo, NULL, debugMessenger)) != VK_SUCCESS){
@@ -300,8 +300,8 @@ vInit_deleteSurface(VkSurfaceKHR *surface, VkInstance instance){
     *surface = (VkSurfaceKHR){0};
 }
 
-int32_t 
-vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance, VkSurfaceKHR surface){
+int32_t
+vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkPhysicalDeviceMemoryProperties *PDMemProperties, VkInstance instance, VkSurfaceKHR surface){
     int32_t result;
     VkPhysicalDevice *physicalDevices;
     uint32_t physicalDevicesCount=0;
@@ -325,6 +325,7 @@ vInit_selectPhysicalDevice(VkPhysicalDevice *physicalDevice, VkInstance instance
         return 1;
     }
     printf("suitable: Yes\n");
+    vkGetPhysicalDeviceMemoryProperties(*physicalDevice, PDMemProperties);
     return 0;
 }
 

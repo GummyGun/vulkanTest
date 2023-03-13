@@ -47,6 +47,9 @@ struct vGraph_pipeline{
     VkPipeline graphicsPipeline;
     struct vGraph_frameBufferDetails frameBufferArray;
     
+    VkBuffer vertexBuffer;
+    VkDeviceMemory vertexBufferMemory;
+    
     VkCommandPool commandPool;
     struct vGraph_commandBufferDetails commandBufferArray;
     
