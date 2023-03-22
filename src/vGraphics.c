@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan.h>
 #include <stdint.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -47,28 +48,48 @@ static void s_deleteFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArr
 static int32_t s_createCommandPool(VkCommandPool *commandPool, struct vInit_queueIndices *queueIndices, VkDevice device);//to change
 static void s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device);
 
-static int32_t s_createVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device);
-static void s_deleteVertexBuffer();
+static int32_t s_createBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProperties, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device);
+static void s_deleteBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDevice device);
 static int32_t s_findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags memoryProperties, const VkPhysicalDeviceMemoryProperties *const PDMemProperties);
+
+static void s_copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool);
+
+
+static int32_t s_createVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool);
+static void s_deleteVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDevice device);
     
 static int32_t s_allocateCommandBuffer(struct vGraph_commandBufferDetails *commandBufferArray, VkDevice device, VkCommandPool commandPool);
 
 static int32_t s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);
 static void s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);//to change
 
-static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray);
+static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer);
 
 
 /*------------------    globals    ------------------*/
 
-static const struct vGraph_vertex vertexArray[] = 
+//triangle vertex
+static const struct vGraph_simpleVertex simpleVertexArray[] = 
 {
-    {{0.0f, -0.5f},{1.0f, 0.0f, 0.0f}}, 
-    {{0.5f, 0.5f},{0.0f, 1.0f, 0.0f}}, 
-    {{-0.5f, 0.5f},{0.0f, 0.0f, 1.0f}}
+    {{0.5f, -0.5f},{0.0f, 0.0f, 1.0f}}, 
+    {{0.5f, 0.5f},{1.0f, 0.0f, 1.0f}}, 
+    {{-0.5f, 0.5f},{0.5f, 1.0f, 0.0f}}
 };
-static const int32_t vertexArrayCount = sizeof(vertexArray)/sizeof(struct vGraph_vertex);
-static const int32_t vertexSize = sizeof(struct vGraph_vertex);
+
+static const int32_t simpleVertexArrayCount = sizeof(simpleVertexArray)/sizeof(struct vGraph_simpleVertex);
+static const int32_t simpleVertexSize = sizeof(struct vGraph_simpleVertex);
+
+static const VkVertexInputBindingDescription vertexInputBindingDescription = {
+    .binding = 0,
+    .stride = sizeof(struct vGraph_simpleVertex),
+    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+};
+
+static const VkVertexInputAttributeDescription vertexInputAttributeDescription[] = {
+    {.binding=0, .location=0, .format=VK_FORMAT_R32G32_SFLOAT, offsetof(struct vGraph_simpleVertex, position)},
+    {.binding=0, .location=1, .format=VK_FORMAT_R32G32B32_SFLOAT, offsetof(struct vGraph_simpleVertex, color)}
+};
+static const int32_t vertexInputAttributeDescriptionCount = sizeof(vertexInputAttributeDescription)/sizeof(struct VkVertexInputAttributeDescription);
 
 /*------------------implementations------------------*/
 
@@ -104,7 +125,7 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graph
         fprintf(stderr, "Error: Creating command pool\n");
         return 1;
     }
-    if(s_createVertexBuffer(&(graphicsPipeline->vertexBuffer), &(graphicsPipeline->vertexBufferMemory), &(graphicsPacket->PDMemProperties),graphicsPacket->device)){
+    if(s_createVertexBuffer(&(graphicsPipeline->vertexBuffer), &(graphicsPipeline->vertexBufferMemory), &(graphicsPacket->PDMemProperties), graphicsPacket->device, graphicsPacket->queueHandles.graphicsQueue, graphicsPipeline->commandPool)){
         fprintf(stderr, "Error: Creating vertex buffer\n");
         return 1;
     }
@@ -123,6 +144,7 @@ void
 vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graphicsStruct *graphicsPacket){
     s_deleteSyncObjects(&(graphicsPipeline->syncObjects), graphicsPacket->device);
     s_deleteCommandPool(&(graphicsPipeline->commandPool), graphicsPacket->device);
+    s_deleteVertexBuffer(&(graphicsPipeline->vertexBuffer), &(graphicsPipeline->vertexBufferMemory), graphicsPacket->device);
     s_deleteFrameBuffer(&(graphicsPipeline->frameBufferArray), graphicsPacket->device);
     s_deletePipeline(graphicsPipeline, graphicsPacket->device);
     s_deleteRenderPass(&(graphicsPipeline->renderPass), graphicsPacket->device);
@@ -144,7 +166,7 @@ vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipe
     vkAcquireNextImageKHR(graphicsPacket->device, graphicsPacket->swapchain, UINT64_MAX, *((graphicsPipeline->syncObjects.imageAvailableSemaphoreArray.semaphores)+graphicsPipeline->currentFrame), VK_NULL_HANDLE, &imageIndex);
     
     vkResetCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), 0);
-    s_recordCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray));
+    s_recordCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray), graphicsPipeline->vertexBuffer);
     
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -235,10 +257,11 @@ s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, stru
     
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = NULL; // Optional
-    vertexInputInfo.vertexAttributeDescriptionCount ;
-    vertexInputInfo.pVertexAttributeDescriptions = NULL; // Optional
+    
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &vertexInputBindingDescription; // Optional
+    vertexInputInfo.vertexAttributeDescriptionCount = vertexInputAttributeDescriptionCount;
+    vertexInputInfo.pVertexAttributeDescriptions = vertexInputAttributeDescription; // Optional
     
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {};
     inputAssemblyCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -541,14 +564,14 @@ s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device){
 
 static
 int32_t
-s_createVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device){
+s_createBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProperties, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device){
     VkBufferCreateInfo vertexBufferCreateInfo = {};
     vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    vertexBufferCreateInfo.size = vertexSize*vertexArrayCount;
-    vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    vertexBufferCreateInfo.size = size;
+    vertexBufferCreateInfo.usage = usage;
     vertexBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-    //printf("vertexNodeSize %d\nvertexCount %d\n", vertexSize, vertexArrayCount);
+    //printf("vertexNodeSize %d\nvertexCount %d\n", simpleVertexSize, simpleVertexArrayCount);
     if(vkCreateBuffer(device, &vertexBufferCreateInfo, NULL, vertexBuffer) != VK_SUCCESS){
         fprintf(stderr, "Error: Error creating vertex buffer\n");
         return 1;
@@ -559,7 +582,7 @@ s_createVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory,
     VkMemoryAllocateInfo memoryAllocationInfo = {};
     memoryAllocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     memoryAllocationInfo.allocationSize = memoryRequirements.size;
-    memoryAllocationInfo.memoryTypeIndex = s_findMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, PDMemProperties);
+    memoryAllocationInfo.memoryTypeIndex = s_findMemoryType(memoryRequirements.memoryTypeBits, memProperties, PDMemProperties);
     
     if(vkAllocateMemory(device, &memoryAllocationInfo, NULL, vertexBufferMemory) != VK_SUCCESS){
         fprintf(stderr, "Error: Error allocating vertex buffer memory\n");
@@ -573,8 +596,11 @@ s_createVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory,
 
 static 
 void 
-s_deleteVertexBuffer(){
-    
+s_deleteBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDevice device){
+    vkFreeMemory(device, *vertexBufferMemory, NULL);
+    *vertexBufferMemory = NULL;
+    vkDestroyBuffer(device, *vertexBuffer, NULL);
+    *vertexBuffer = NULL;
 }
 
 static 
@@ -586,6 +612,80 @@ s_findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags memoryProperties, co
         }
     }
     return -1;
+}
+
+static
+void
+s_copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool){
+    VkCommandBufferAllocateInfo bufferAllocateInfo = {};
+    bufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    bufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    bufferAllocateInfo.commandPool = commandPool;
+    bufferAllocateInfo.commandBufferCount = 1;
+    
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &bufferAllocateInfo, &commandBuffer);
+    
+    VkCommandBufferBeginInfo cmdBufferBeginInfo  = {};
+    cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    cmdBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    
+    vkBeginCommandBuffer(commandBuffer, &cmdBufferBeginInfo);
+    
+    VkBufferCopy copyRegion = {};
+    copyRegion.srcOffset = 0;
+    copyRegion.dstOffset = 0;
+    copyRegion.size = bufferSize;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+    
+    vkEndCommandBuffer(commandBuffer);
+    
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+    
+    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphicsQueue);
+    
+    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
+static
+int32_t
+s_createVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool){
+    
+    VkDeviceSize bufferSize = simpleVertexSize*simpleVertexArrayCount;
+    
+    VkBuffer stagingBuffer = NULL;
+    VkDeviceMemory stagingBufferMemory = NULL;
+    
+    if(s_createBuffer(&stagingBuffer, &stagingBufferMemory, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, PDMemProperties, device)){
+        fprintf(stderr, "Error: Creating Vertex Buffer\n");
+        return 1;
+    }
+    
+    void *data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, simpleVertexArray, bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+    
+    if(s_createBuffer(vertexBuffer, vertexBufferMemory, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, PDMemProperties, device)){
+        fprintf(stderr, "Error: Creating Vertex Buffer\n");
+        return 1;
+    }
+    
+    s_copyBuffer(stagingBuffer, *vertexBuffer, bufferSize, device, graphicsQueue, commandPool);
+    
+    s_deleteBuffer(&stagingBuffer, &stagingBufferMemory, device);
+    
+    return 0;
+}
+
+static 
+void 
+s_deleteVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDevice device){
+    s_deleteBuffer(vertexBuffer, vertexBufferMemory, device);
 }
 
 static
@@ -679,8 +779,8 @@ s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
 }
 
 static
-int32_t 
-s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray){
+int32_t
+s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer){
     
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -721,7 +821,12 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
     scissor.extent = swapchainDetails->extent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    VkBuffer vertexBuffers[] = {vertexBuffer};
+    VkDeviceSize vertexOffsets[] = {0};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, vertexOffsets);
+    
+    vkCmdDraw(commandBuffer, 3, simpleVertexArrayCount, 0, 0);
+    //printf("potencial Error\n");
     
     vkCmdEndRenderPass(commandBuffer);
 
@@ -730,16 +835,5 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
         return 1;
     }
     
-    return 0;
-}
-
-static
-int32_t
-s_getBindingDescription(VkVertexInputBindingDescription *vertInputBindDescription){
-    VkVertexInputBindingDescription bindingDescription = {};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(struct vGraph_vertex);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    *vertInputBindDescription = bindingDescription;
     return 0;
 }

@@ -56,9 +56,13 @@ struct vGraph_pipeline{
     struct vGraph_syncObjects syncObjects;
 };
 
-struct vGraph_vertex{
+struct vGraph_simpleVertex{
     vec2 position;
     vec3 color;
+};
+
+struct vGraph_vertexDescription{
+    VkVertexInputAttributeDescription attributes[2];
 };
 
 //functions
