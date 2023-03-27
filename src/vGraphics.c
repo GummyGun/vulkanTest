@@ -54,7 +54,6 @@ static int32_t s_findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags memor
 
 static void s_copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool);
 
-
 static int32_t s_createVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool);
 static void s_deleteVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDevice device);
     
@@ -90,6 +89,16 @@ static const VkVertexInputAttributeDescription vertexInputAttributeDescription[]
     {.binding=0, .location=1, .format=VK_FORMAT_R32G32B32_SFLOAT, offsetof(struct vGraph_simpleVertex, color)}
 };
 static const int32_t vertexInputAttributeDescriptionCount = sizeof(vertexInputAttributeDescription)/sizeof(struct VkVertexInputAttributeDescription);
+
+
+static const uint16_t simpleVertexIndicesArray[] =
+{
+    0, 1, 2, 1, 2, 3
+};
+
+static const int32_t simpleVertexIndicesArrayCount = sizeof(simpleVertexIndicesArray)/sizeof(int16_t);
+static const int32_t simpleVertexIndicesSize = sizeof(int16_t);
+
 
 /*------------------implementations------------------*/
 

@@ -50,6 +50,9 @@ struct vGraph_pipeline{
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
+    
     VkCommandPool commandPool;
     struct vGraph_commandBufferDetails commandBufferArray;
     
