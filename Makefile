@@ -1,5 +1,16 @@
-target = X11
-sendIp = $(TESTIP)
+target = configs
+
+ifeq ($(target), configs)
+	target = $(shell ls configs/ws)
+endif
+
+sendIp = configs
+
+ifeq ($(sendIp), envVar)
+	sendIp = $(TESTIP)
+else ($(sendIp), configs)
+	sendIp = $(shell ls configs/ip)
+endif 
 
 TMP = tmps
 OBJ = $(TMP)/obj
@@ -16,6 +27,7 @@ rpath =  $(shell pwd)
 files = main.c window.c vInit.c vGraphics.c utils.c
 all_OBJS = $(addprefix $(OBJ)/, $(files:.c=.o))
 all_DEPS = $(addprefix $(DEP)/, $(files:.c=.d))
+
 
 .SECONDEXPANSION:
 
