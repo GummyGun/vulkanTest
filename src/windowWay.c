@@ -125,6 +125,7 @@ int32_t
 window_closeWindowEvent(struct window_window *windowParam){
     static int state = 10000;
     
+    printf("%d\n", state);
     return state--;
 }
 

@@ -18,7 +18,7 @@ int main(){
     
     vulkanStruct.debugMode = 1;
     
-    if(window_initWindow(&window, 1200, 900, "vulkanTest")){
+    if(window_initWindow(&window, 900, 900, "vulkanTest")){
         fprintf(stderr, "[Window] Error: Creating the window\n");
         assert(0 && "Error creating window");
     }

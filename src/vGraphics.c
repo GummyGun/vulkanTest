@@ -57,12 +57,15 @@ static void s_copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bu
 static int32_t s_createVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool);
 static void s_deleteVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDevice device);
     
+static int32_t s_createIndexBuffer(VkBuffer *indexBuffer, VkDeviceMemory *indexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool);
+static void s_deleteIndexBuffer(VkBuffer *indexBuffer, VkDeviceMemory *indexBufferMemory, VkDevice device);
+    
 static int32_t s_allocateCommandBuffer(struct vGraph_commandBufferDetails *commandBufferArray, VkDevice device, VkCommandPool commandPool);
 
 static int32_t s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);
 static void s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);//to change
 
-static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer);
+static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer, VkBuffer indexBuffer);
 
 
 /*------------------    globals    ------------------*/
@@ -70,9 +73,14 @@ static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imag
 //triangle vertex
 static const struct vGraph_simpleVertex simpleVertexArray[] = 
 {
-    {{0.5f, -0.5f},{0.0f, 0.0f, 1.0f}}, 
-    {{0.5f, 0.5f},{1.0f, 0.0f, 1.0f}}, 
-    {{-0.5f, 0.5f},{0.5f, 1.0f, 0.0f}}
+    {{0.0f, 0.0f},{1.0f, 1.0f, 1.0f}},
+    
+    {{0.0f, -0.8f},{1.0f, 0.0f, 0.0f}},
+    {{0.841169779391f, -0.188854382f},{1.0f, 1.0f, 0.0f}}, 
+    {{0.519871513973f, 0.8f},{0.0f, 1.0f, 0.0f}}, 
+    {{-0.519871513973f, 0.8f},{0.0f, 1.0f, 1.0f}},
+    {{-0.841169779391f, -0.188854382f},{0.0f, 0.0f, 1.0f}}, 
+    
 };
 
 static const int32_t simpleVertexArrayCount = sizeof(simpleVertexArray)/sizeof(struct vGraph_simpleVertex);
@@ -91,13 +99,13 @@ static const VkVertexInputAttributeDescription vertexInputAttributeDescription[]
 static const int32_t vertexInputAttributeDescriptionCount = sizeof(vertexInputAttributeDescription)/sizeof(struct VkVertexInputAttributeDescription);
 
 
-static const uint16_t simpleVertexIndicesArray[] =
+static const uint16_t simpleIndexArray[] =
 {
-    0, 1, 2, 1, 2, 3
+    1, 2, 3, 1, 3, 4, 1, 4, 5
 };
 
-static const int32_t simpleVertexIndicesArrayCount = sizeof(simpleVertexIndicesArray)/sizeof(int16_t);
-static const int32_t simpleVertexIndicesSize = sizeof(int16_t);
+static const int32_t simpleIndexArrayCount = sizeof(simpleIndexArray)/sizeof(int16_t);
+static const int32_t simpleIndexSize = sizeof(int16_t);
 
 
 /*------------------implementations------------------*/
@@ -138,6 +146,10 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graph
         fprintf(stderr, "Error: Creating vertex buffer\n");
         return 1;
     }
+    if(s_createIndexBuffer(&(graphicsPipeline->indexBuffer), &(graphicsPipeline->indexBufferMemory), &(graphicsPacket->PDMemProperties), graphicsPacket->device, graphicsPacket->queueHandles.graphicsQueue, graphicsPipeline->commandPool)){
+        fprintf(stderr, "Error: Creating index buffer\n");
+        return 1;
+    }
     if(s_allocateCommandBuffer(&(graphicsPipeline->commandBufferArray), graphicsPacket->device, graphicsPipeline->commandPool)){
         fprintf(stderr, "Error: Creating command buffer\n");
         return 1;
@@ -154,6 +166,7 @@ vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_gr
     s_deleteSyncObjects(&(graphicsPipeline->syncObjects), graphicsPacket->device);
     s_deleteCommandPool(&(graphicsPipeline->commandPool), graphicsPacket->device);
     s_deleteVertexBuffer(&(graphicsPipeline->vertexBuffer), &(graphicsPipeline->vertexBufferMemory), graphicsPacket->device);
+    s_deleteIndexBuffer(&(graphicsPipeline->indexBuffer), &(graphicsPipeline->indexBufferMemory), graphicsPacket->device);
     s_deleteFrameBuffer(&(graphicsPipeline->frameBufferArray), graphicsPacket->device);
     s_deletePipeline(graphicsPipeline, graphicsPacket->device);
     s_deleteRenderPass(&(graphicsPipeline->renderPass), graphicsPacket->device);
@@ -175,7 +188,7 @@ vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipe
     vkAcquireNextImageKHR(graphicsPacket->device, graphicsPacket->swapchain, UINT64_MAX, *((graphicsPipeline->syncObjects.imageAvailableSemaphoreArray.semaphores)+graphicsPipeline->currentFrame), VK_NULL_HANDLE, &imageIndex);
     
     vkResetCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), 0);
-    s_recordCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray), graphicsPipeline->vertexBuffer);
+    s_recordCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray), graphicsPipeline->vertexBuffer, graphicsPipeline->indexBuffer);
     
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -698,6 +711,44 @@ s_deleteVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory,
 }
 
 static
+int32_t 
+s_createIndexBuffer(VkBuffer *indexBuffer, VkDeviceMemory *indexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool){
+    
+    VkDeviceSize bufferSize = simpleIndexSize* simpleIndexArrayCount;
+    
+    VkBuffer stagingBuffer = NULL;
+    VkDeviceMemory stagingBufferMemory = NULL;
+    
+    if(s_createBuffer(&stagingBuffer, &stagingBufferMemory, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, PDMemProperties, device)){
+        fprintf(stderr, "Error: Creating Vertex Buffer\n");
+        return 1;
+    }
+    
+    void *data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, simpleIndexArray, bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+    
+    if(s_createBuffer(indexBuffer, indexBufferMemory, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, PDMemProperties, device)){
+        fprintf(stderr, "Error: Creating Vertex Buffer\n");
+        return 1;
+    }
+    
+    s_copyBuffer(stagingBuffer, *indexBuffer, bufferSize, device, graphicsQueue, commandPool);
+    
+    s_deleteBuffer(&stagingBuffer, &stagingBufferMemory, device);
+    
+    return 0;
+}
+
+static 
+void 
+s_deleteIndexBuffer(VkBuffer *indexBuffer, VkDeviceMemory *indexBufferMemory, VkDevice device){
+    s_deleteBuffer(indexBuffer, indexBufferMemory, device);
+    
+}
+
+static
 int32_t
 s_allocateCommandBuffer(struct vGraph_commandBufferDetails *commandBufferArray, VkDevice device, VkCommandPool commandPool){
     commandBufferArray->commandBuffers=malloc(FRAMES_IN_FLIGHT*sizeof(VkCommandBuffer));
@@ -789,7 +840,7 @@ s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
 
 static
 int32_t
-s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer){
+s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer, VkBuffer indexBuffer){
     
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -833,8 +884,10 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
     VkBuffer vertexBuffers[] = {vertexBuffer};
     VkDeviceSize vertexOffsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, vertexOffsets);
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
     
-    vkCmdDraw(commandBuffer, 3, simpleVertexArrayCount, 0, 0);
+    //printf("testestsetsetsetsetsetset- --------------------%d\n", simpleIndexArrayCount);
+    vkCmdDrawIndexed(commandBuffer, simpleIndexArrayCount, 1, 0, 0, 0);
     //printf("potencial Error\n");
     
     vkCmdEndRenderPass(commandBuffer);
