@@ -73,15 +73,42 @@ static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imag
 //triangle vertex
 static const struct vGraph_simpleVertex simpleVertexArray[] = 
 {
-    {{0.0f, 0.0f},{1.0f, 1.0f, 1.0f}},
-    
-    {{0.0f, -0.8f},{1.0f, 0.0f, 0.0f}},
-    {{0.841169779391f, -0.188854382f},{1.0f, 1.0f, 0.0f}}, 
-    {{0.519871513973f, 0.8f},{0.0f, 1.0f, 0.0f}}, 
-    {{-0.519871513973f, 0.8f},{0.0f, 1.0f, 1.0f}},
-    {{-0.841169779391f, -0.188854382f},{0.0f, 0.0f, 1.0f}}, 
+/*0*/   {{0.0f, 0.0f},{1.0f, 1.0f, 1.0f}},
+/*1*/   {{0.0f, -0.8f},{1.0f, 0.0f, 0.0f}},
+/*2*/   {{0.19857324855468f, -0.18885438199982f},{1.0f, 1.0f, 0.0f}}, 
+/*3*/   {{0.841169779391f, -0.188854382f},{0.0f, 1.0f, 0.0f}}, 
+/*4*/   {{0.32129826541796f, 0.18885438199982f},{0.0f, 1.0f, 1.0f}}, 
+/*5*/   {{0.519871513973f, 0.8f},{0.0f, 0.0f, 1.0f}}, 
+/*6*/   {{0.0f, 0.42229123600033f},{1.0f, 0.0f, 1.0f}}, 
+/*7*/   {{-0.519871513973f, 0.8f},{1.0f, 0.0f, 0.0f}},
+/*8*/   {{-0.32129826541796f, 0.18885438199982f},{1.0f, 1.0f, 0.0f}}, 
+
+/*0*/   {{-0.841169779391f, -0.188854382f},{0.0f, 1.0f, 0.0f}}, 
+/*a*/   {{-0.19857324855468f, -0.18885438199982f},{0.0f, 1.0f, 1.0f}}, 
     
 };
+/*
+             ..---1---..
+        .--""'   / \   '""--.
+      ."        |   |        ".
+    ."          |   |          ".
+   /           /     \           \
+  /           |       |           \
+ 9------------a-------2------------3
+.'`--.       /         \       .--' .
+:     ".    |           |    ."     ;
+|       "-. |     0     | .-"       |
+|          8-.         .-4          |
+"         |   ".     ."   |         "
+ \       /      "-6-"      \       /
+ ".     |      .-' '-.      |     ."
+  \     |    ."       ".    |     /
+   \   /  .-"           "-.  \   /
+    ".|.-"                 "-.|."
+      7.                     .5
+        "--..           ..--"
+            '""-------""'
+*/
 
 static const int32_t simpleVertexArrayCount = sizeof(simpleVertexArray)/sizeof(struct vGraph_simpleVertex);
 static const int32_t simpleVertexSize = sizeof(struct vGraph_simpleVertex);
@@ -101,8 +128,24 @@ static const int32_t vertexInputAttributeDescriptionCount = sizeof(vertexInputAt
 
 static const uint16_t simpleIndexArray[] =
 {
-    1, 2, 3, 1, 3, 4, 1, 4, 5
+    1,3,5, 1,5,7, 1,7,9, 1,4,8, 0xa,3,6, 2,5,8, 0xa,4,7, 9,2,6, 0xa,2,0, 2,4,0, 0,4,6, 0,6,8, 0xa,0,8
 };
+
+/* pentagrama mas estrella
+    1,3,5, 1,5,7, 1,7,9, 1,2,0xa, 2,3,4, 4,5,6, 8,6,7, 9,0xa,8, 0xa,2,0, 2,4,0, 4,6,0, 0,6,8, 0xa,0,8
+*/
+
+/* start 
+    1,2,0xa, 2,3,4, 4,5,6, 8,6,7, 9,0xa,8, 0xa,2,0, 2,4,0, 4,6,0, 0,6,8, 0xa,0,8
+*/
+
+/* pentagram
+    1,3,5, 1,5,7, 1,7,9
+*/
+
+/* negative star
+    1,3,2, 3,5,4, 6,5,7, 9,8,7, 1,0xa,9
+*/
 
 static const int32_t simpleIndexArrayCount = sizeof(simpleIndexArray)/sizeof(int16_t);
 static const int32_t simpleIndexSize = sizeof(int16_t);
