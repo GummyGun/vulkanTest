@@ -8,7 +8,7 @@ sendIp = configs
 
 ifeq ($(sendIp), envVar)
 	sendIp = $(TESTIP)
-else ($(sendIp), configs)
+else ifeq ($(sendIp), configs)
 	sendIp = $(shell ls configs/ip)
 endif 
 
