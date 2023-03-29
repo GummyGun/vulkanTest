@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -70,6 +71,24 @@ int32_t
 utils_syncFile(struct utils_file *file){
     
     return 0;
+}
+
+int32_t
+utils_createPArray(struct utils_pointerArray *array, int32_t size){
+    array->size = size;
+    if(!(array->data = calloc(1, sizeof(void*) * size))){
+        fprintf(stderr, "Error: Calloc failded\n");
+        return 1;
+    }
+    return 0;
+}
+
+int32_t
+utils_deletePArray(struct utils_pointerArray *array){
+    free(array->data);
+    array->data = NULL;
+    array->size = 0;
+    return 1;
 }
 
 /* =============================== static methods =============================== */

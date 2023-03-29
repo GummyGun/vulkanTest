@@ -2,11 +2,13 @@
 #define __GUM__VULKAN__VGRAPHICS__
 
 #include "vInit.h"
+#include "utils.h"
 
 #include <vulkan/vulkan.h>
 #include <stdint.h>
 #include <cglm/vec2.h>
 #include <cglm/vec3.h>
+#include <cglm/mat4.h>
 
 //structures
 
@@ -43,6 +45,8 @@ struct vGraph_pipeline{
     VkShaderModule vertShaderModule;
     VkShaderModule fragShaderModule;
     VkRenderPass renderPass;
+    
+    VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout layout;
     VkPipeline graphicsPipeline;
     struct vGraph_frameBufferDetails frameBufferArray;
@@ -53,6 +57,10 @@ struct vGraph_pipeline{
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
     
+    struct utils_pointerArray uniformBuffers;
+    struct utils_pointerArray uniformBuffersMemory;
+    struct utils_pointerArray uniformBuffersMap;
+    
     VkCommandPool commandPool;
     struct vGraph_commandBufferDetails commandBufferArray;
     
@@ -62,6 +70,12 @@ struct vGraph_pipeline{
 struct vGraph_simpleVertex{
     vec2 position;
     vec3 color;
+};
+
+struct vGraph_uniformBufferObject{
+    mat4 model;
+    mat4 view;
+    mat4 proj;
 };
 
 struct vGraph_vertexDescription{

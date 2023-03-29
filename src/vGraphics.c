@@ -9,6 +9,12 @@
 #include <stdlib.h>
 #include <assert.h>
 
+/*
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb.h>
+#include <stb_image.h>
+*/
+
 /*------------------  defines ------------------*/
 
 #define FRAMES_IN_FLIGHT 2
@@ -36,11 +42,14 @@ static void s_deletePipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice 
 static int32_t s_createShaderModule(VkShaderModule *shaderModule, const char *shaderFileName, VkDevice device);
 static void s_deleteShaderModule(VkShaderModule *shaderModule, VkDevice device);
 
-static int32_t s_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device);
+static int32_t s_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device, VkDescriptorSetLayout *descriptorSetLayout);
 static void s_deletePipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device);
 
 static int32_t s_createRenderPass(VkRenderPass *renderPass, VkDevice device, const VkFormat *const swapchainImageFormat);
 static void s_deleteRenderPass(VkRenderPass *renderPass, VkDevice device);
+
+static int32_t s_createDescriptorSetLayout(VkDescriptorSetLayout *descriptorSetLayout, VkDevice device);
+static void s_deleteDescriptorSetLayout(VkDescriptorSetLayout *descriptorSetLayout, VkDevice device);
 
 static int32_t s_createFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, struct vInit_imageViewDetails *imageViewArray, VkRenderPass renderPass);
 static void s_deleteFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArray, VkDevice device);
@@ -59,6 +68,9 @@ static void s_deleteVertexBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexB
     
 static int32_t s_createIndexBuffer(VkBuffer *indexBuffer, VkDeviceMemory *indexBufferMemory, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool);
 static void s_deleteIndexBuffer(VkBuffer *indexBuffer, VkDeviceMemory *indexBufferMemory, VkDevice device);
+
+static int32_t s_createUniformBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool);
+static void s_deleteUnionBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, VkDevice device);
     
 static int32_t s_allocateCommandBuffer(struct vGraph_commandBufferDetails *commandBufferArray, VkDevice device, VkCommandPool commandPool);
 
@@ -173,6 +185,10 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graph
         fprintf(stderr, "Error: Creating renderPass\n");
         return 1;
     }
+    if(s_createDescriptorSetLayout(&(graphicsPipeline->descriptorSetLayout), graphicsPacket->device)){
+        fprintf(stderr, "Error: Creating descriptor set layout\n");
+        return 1;
+    }
     if(s_createPipeline(graphicsPipeline, graphicsPacket->device, &(graphicsPacket->swapchainDetails))){
         fprintf(stderr, "Error: Creating test pipeline\n");
         return 1;
@@ -191,6 +207,10 @@ vGraph_initPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_graph
     }
     if(s_createIndexBuffer(&(graphicsPipeline->indexBuffer), &(graphicsPipeline->indexBufferMemory), &(graphicsPacket->PDMemProperties), graphicsPacket->device, graphicsPacket->queueHandles.graphicsQueue, graphicsPipeline->commandPool)){
         fprintf(stderr, "Error: Creating index buffer\n");
+        return 1;
+    }
+    if(s_createUniformBuffers(&(graphicsPipeline->uniformBuffers), &(graphicsPipeline->uniformBuffersMemory), &(graphicsPipeline->uniformBuffersMap), &(graphicsPacket->PDMemProperties), graphicsPacket->device, graphicsPacket->queueHandles.graphicsQueue, graphicsPipeline->commandPool)){
+        fprintf(stderr, "Error: Creating uniform buffer\n");
         return 1;
     }
     if(s_allocateCommandBuffer(&(graphicsPipeline->commandBufferArray), graphicsPacket->device, graphicsPipeline->commandPool)){
@@ -212,6 +232,7 @@ vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_gr
     s_deleteIndexBuffer(&(graphicsPipeline->indexBuffer), &(graphicsPipeline->indexBufferMemory), graphicsPacket->device);
     s_deleteFrameBuffer(&(graphicsPipeline->frameBufferArray), graphicsPacket->device);
     s_deletePipeline(graphicsPipeline, graphicsPacket->device);
+    s_deleteDescriptorSetLayout(&(graphicsPipeline->descriptorSetLayout), graphicsPacket->device);
     s_deleteRenderPass(&(graphicsPipeline->renderPass), graphicsPacket->device);
 }
 
@@ -400,7 +421,7 @@ s_createPipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device, stru
     *(colorBlending.blendConstants+2) = 0.0f; // Optional
     *(colorBlending.blendConstants+3) = 0.0f; // Optional
     
-    if(s_createPipelineLayout(&(graphicsPipeline->layout), device)){
+    if(s_createPipelineLayout(&(graphicsPipeline->layout), device, &(graphicsPipeline->descriptorSetLayout))){
         return 1;
     }
     
@@ -451,11 +472,11 @@ s_deletePipeline(struct vGraph_pipeline *graphicsPipeline, VkDevice device){
 
 static
 int32_t
-s_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device){
+s_createPipelineLayout(VkPipelineLayout *pipelineLayout, VkDevice device, VkDescriptorSetLayout *descriptorSetLayout){
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutCreateInfo.setLayoutCount = 0; // Optional
-    pipelineLayoutCreateInfo.pSetLayouts = NULL; // Optional
+    pipelineLayoutCreateInfo.setLayoutCount = 1; 
+    pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayout; 
     pipelineLayoutCreateInfo.pushConstantRangeCount = 0; // Optional
     pipelineLayoutCreateInfo.pPushConstantRanges = NULL; // Optional
     
@@ -498,6 +519,39 @@ void
 s_deleteShaderModule(VkShaderModule *shaderModule, VkDevice device){
     vkDestroyShaderModule(device, *shaderModule, NULL);
     *shaderModule = NULL;
+}
+
+static
+int32_t
+s_createDescriptorSetLayout(VkDescriptorSetLayout *descriptorSetLayout, VkDevice device){
+    VkDescriptorSetLayoutBinding UBOLayoutBuffer = {};
+    UBOLayoutBuffer.binding = 0;
+    UBOLayoutBuffer.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    UBOLayoutBuffer.descriptorCount = 1;
+    UBOLayoutBuffer.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    
+    UBOLayoutBuffer.pImmutableSamplers = NULL;
+    
+    //VkDescriptorSetLayout descriptorSetLayout;
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo = {};
+    descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutCreateInfo.bindingCount = 1;
+    descriptorSetLayoutCreateInfo.pBindings = &UBOLayoutBuffer;
+    
+    if(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, NULL, descriptorSetLayout) != VK_SUCCESS){
+        fprintf(stderr, "Error: Creating descriptor set Layout\n");
+        return 1;
+    }
+    
+    return 0;
+}
+
+static 
+void
+s_deleteDescriptorSetLayout(VkDescriptorSetLayout *descriptorSetLayout, VkDevice device){
+    vkDestroyDescriptorSetLayout(device, *descriptorSetLayout, NULL);
+    *descriptorSetLayout = NULL;
+    
 }
 
 static 
@@ -791,6 +845,25 @@ s_deleteIndexBuffer(VkBuffer *indexBuffer, VkDeviceMemory *indexBufferMemory, Vk
     
 }
 
+static 
+int32_t
+s_createUniformBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool){
+    utils_createPArray(uniformBuffers, FRAMES_IN_FLIGHT);
+    utils_createPArray(uniformBuffersMemory, FRAMES_IN_FLIGHT);
+    utils_createPArray(uniformBuffersMap, FRAMES_IN_FLIGHT);
+    /*
+    printf("%d\n", uniformBuffers->size);
+    printf("%p\n", PDMemProperties);
+    */
+    return 1;
+}
+
+static
+void
+s_deleteUnionBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, VkDevice device){
+    
+}
+    
 static
 int32_t
 s_allocateCommandBuffer(struct vGraph_commandBufferDetails *commandBufferArray, VkDevice device, VkCommandPool commandPool){

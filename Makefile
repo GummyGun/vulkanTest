@@ -46,9 +46,9 @@ compilerFlags = $(compiler$(target)Flags)
 compilerWayFlags = 
 compilerX11Flags = 
 
-linkerFlags = $(linker$(target)Flags)
-linkerWayFlags = -lvulkan -lpthread -lwayland-client
-linkerX11Flags = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
+linkerFlags = -lm -lvulkan -lpthread $(linker$(target)Flags)
+linkerWayFlags = -lwayland-client
+linkerX11Flags = -lglfw -ldl -lX11 -lXxf86vm -lXrandr -lXi
 
 startAction = $(startAction$(target))
 startActionWay = genXDG
