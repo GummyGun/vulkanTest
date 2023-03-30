@@ -57,8 +57,8 @@ static void s_deleteFrameBuffer(struct vGraph_frameBufferDetails *frameBufferArr
 static int32_t s_createCommandPool(VkCommandPool *commandPool, struct vInit_queueIndices *queueIndices, VkDevice device);//to change
 static void s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device);
 
-static int32_t s_createBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProperties, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device);
-static void s_deleteBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDevice device);
+static int32_t s_createBuffer(VkBuffer *buffer, VkDeviceMemory *bufferMemory, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProperties, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device);
+static void s_deleteBuffer(VkBuffer *buffer, VkDeviceMemory *bufferMemory, VkDevice device);
 static int32_t s_findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags memoryProperties, const VkPhysicalDeviceMemoryProperties *const PDMemProperties);
 
 static void s_copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool);
@@ -79,6 +79,7 @@ static void s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice
 
 static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer, VkBuffer indexBuffer);
 
+static void s_updateUniformBuffer();
 
 /*------------------    globals    ------------------*/
 
@@ -230,6 +231,7 @@ vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_gr
     s_deleteCommandPool(&(graphicsPipeline->commandPool), graphicsPacket->device);
     s_deleteVertexBuffer(&(graphicsPipeline->vertexBuffer), &(graphicsPipeline->vertexBufferMemory), graphicsPacket->device);
     s_deleteIndexBuffer(&(graphicsPipeline->indexBuffer), &(graphicsPipeline->indexBufferMemory), graphicsPacket->device);
+    s_deleteUnionBuffers(&(graphicsPipeline->uniformBuffers), &(graphicsPipeline->uniformBuffersMemory), &(graphicsPipeline->uniformBuffersMap), graphicsPacket->device);
     s_deleteFrameBuffer(&(graphicsPipeline->frameBufferArray), graphicsPacket->device);
     s_deletePipeline(graphicsPipeline, graphicsPacket->device);
     s_deleteDescriptorSetLayout(&(graphicsPipeline->descriptorSetLayout), graphicsPacket->device);
@@ -253,6 +255,8 @@ vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipe
     
     vkResetCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), 0);
     s_recordCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray), graphicsPipeline->vertexBuffer, graphicsPipeline->indexBuffer);
+    
+    s_updateUniformBuffer();
     
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -683,32 +687,32 @@ s_deleteCommandPool(VkCommandPool *commandPool, VkDevice device){
 
 static
 int32_t
-s_createBuffer(VkBuffer *vertexBuffer, VkDeviceMemory *vertexBufferMemory, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProperties, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device){
-    VkBufferCreateInfo vertexBufferCreateInfo = {};
-    vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    vertexBufferCreateInfo.size = size;
-    vertexBufferCreateInfo.usage = usage;
-    vertexBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+s_createBuffer(VkBuffer *buffer, VkDeviceMemory *bufferMemory, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProperties, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device){
+    VkBufferCreateInfo bufferCreateInfo = {};
+    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferCreateInfo.size = size;
+    bufferCreateInfo.usage = usage;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
     //printf("vertexNodeSize %d\nvertexCount %d\n", simpleVertexSize, simpleVertexArrayCount);
-    if(vkCreateBuffer(device, &vertexBufferCreateInfo, NULL, vertexBuffer) != VK_SUCCESS){
+    if(vkCreateBuffer(device, &bufferCreateInfo, NULL, buffer) != VK_SUCCESS){
         fprintf(stderr, "Error: Error creating vertex buffer\n");
         return 1;
     }
     VkMemoryRequirements memoryRequirements = {};
-    vkGetBufferMemoryRequirements(device, *vertexBuffer, &memoryRequirements);
+    vkGetBufferMemoryRequirements(device, *buffer, &memoryRequirements);
     
     VkMemoryAllocateInfo memoryAllocationInfo = {};
     memoryAllocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     memoryAllocationInfo.allocationSize = memoryRequirements.size;
     memoryAllocationInfo.memoryTypeIndex = s_findMemoryType(memoryRequirements.memoryTypeBits, memProperties, PDMemProperties);
     
-    if(vkAllocateMemory(device, &memoryAllocationInfo, NULL, vertexBufferMemory) != VK_SUCCESS){
+    if(vkAllocateMemory(device, &memoryAllocationInfo, NULL, bufferMemory) != VK_SUCCESS){
         fprintf(stderr, "Error: Error allocating vertex buffer memory\n");
         return 1;
     }
     
-    vkBindBufferMemory(device, *vertexBuffer, *vertexBufferMemory, 0);
+    vkBindBufferMemory(device, *buffer, *bufferMemory, 0);
     
     return 0;
 }
@@ -848,20 +852,38 @@ s_deleteIndexBuffer(VkBuffer *indexBuffer, VkDeviceMemory *indexBufferMemory, Vk
 static 
 int32_t
 s_createUniformBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool){
+    //printf("-------------------------------------\n");
+    int32_t uniformBufferSize = sizeof(struct vGraph_uniformBufferObject);
     utils_createPArray(uniformBuffers, FRAMES_IN_FLIGHT);
     utils_createPArray(uniformBuffersMemory, FRAMES_IN_FLIGHT);
     utils_createPArray(uniformBuffersMap, FRAMES_IN_FLIGHT);
-    /*
-    printf("%d\n", uniformBuffers->size);
-    printf("%p\n", PDMemProperties);
-    */
-    return 1;
+    printf("uniform buffer size %d bytes\n", uniformBufferSize);
+    
+    for(int32_t iter=0; iter<2; iter++){
+        
+        if(s_createBuffer(((VkBuffer*)uniformBuffers->data)+iter, ((VkDeviceMemory*)uniformBuffersMemory->data)+iter, uniformBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, PDMemProperties, device)){
+            fprintf(stderr, "Error: generating the uniform buffers\n");
+            return 1;
+        }
+        
+        vkMapMemory(device, *(((VkDeviceMemory*)uniformBuffersMemory->data)+iter), 0, uniformBufferSize, 0, uniformBuffersMap->data+iter);
+        
+    }
+    return 0;
 }
 
 static
 void
 s_deleteUnionBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, VkDevice device){
     
+    for(int32_t iter=0; iter<FRAMES_IN_FLIGHT; iter++){
+        vkUnmapMemory(device, *(((VkDeviceMemory*)uniformBuffersMemory->data)+iter)); 
+        s_deleteBuffer(((VkBuffer*)uniformBuffers->data)+iter, ((VkDeviceMemory*)uniformBuffersMemory->data)+iter, device);
+        
+    }
+    utils_deletePArray(uniformBuffers);
+    utils_deletePArray(uniformBuffersMemory);
+    utils_deletePArray(uniformBuffersMap);
 }
     
 static
@@ -1014,4 +1036,10 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
     }
     
     return 0;
+}
+
+static 
+void
+s_updateUniformBuffer(){
+    
 }

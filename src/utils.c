@@ -80,6 +80,11 @@ utils_createPArray(struct utils_pointerArray *array, int32_t size){
         fprintf(stderr, "Error: Calloc failded\n");
         return 1;
     }
+    /*
+    printf("arraySize %d\n", sizeof(void*) * size);
+    printf("arraySize %d\n", size);
+    printf("%p\n", array->data);
+    */
     return 0;
 }
 

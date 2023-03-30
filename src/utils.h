@@ -12,7 +12,7 @@ struct utils_file{
 
 struct utils_pointerArray{
     int32_t size;
-    void **data;
+    void *data;
 };
 
 //functions
