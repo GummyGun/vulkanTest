@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <cglm/cglm.h>
 
 /*
 #define STB_IMAGE_IMPLEMENTATION
@@ -79,7 +80,7 @@ static void s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice
 
 static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer, VkBuffer indexBuffer);
 
-static void s_updateUniformBuffer();
+static void s_updateUniformBuffer(int32_t currentFrame);
 
 /*------------------    globals    ------------------*/
 
@@ -256,7 +257,7 @@ vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipe
     vkResetCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), 0);
     s_recordCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray), graphicsPipeline->vertexBuffer, graphicsPipeline->indexBuffer);
     
-    s_updateUniformBuffer();
+    s_updateUniformBuffer(graphicsPipeline->currentFrame);
     
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1040,6 +1041,16 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
 
 static 
 void
-s_updateUniformBuffer(){
+s_updateUniformBuffer(int32_t currentFrame){
+    struct vGraph_uniformBufferObject localUniformBuffer = {};
+    //mat4 hola = GLM_MAT4_IDENTITY_INIT;
+    vec3 test = GLM_VEC3_ZERO_INIT;
+    glm_rotate(localUniformBuffer.model, 2, test);
+    
+    /*
+    localUniformBuffer.model = 
+    localUniformBuffer.view =
+    localUniformBuffer.project =
+    */
     
 }
