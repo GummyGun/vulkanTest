@@ -84,6 +84,7 @@ static void s_updateUniformBuffer(int32_t currentFrame);
 
 /*------------------    globals    ------------------*/
 
+#ifdef pent
 //triangle vertex
 static const struct vGraph_simpleVertex simpleVertexArray[] = 
 {
@@ -123,23 +124,6 @@ static const struct vGraph_simpleVertex simpleVertexArray[] =
         "--..           ..--"
             '""-------""'
 */
-
-static const int32_t simpleVertexArrayCount = sizeof(simpleVertexArray)/sizeof(struct vGraph_simpleVertex);
-static const int32_t simpleVertexSize = sizeof(struct vGraph_simpleVertex);
-
-static const VkVertexInputBindingDescription vertexInputBindingDescription = {
-    .binding = 0,
-    .stride = sizeof(struct vGraph_simpleVertex),
-    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-};
-
-static const VkVertexInputAttributeDescription vertexInputAttributeDescription[] = {
-    {.binding=0, .location=0, .format=VK_FORMAT_R32G32_SFLOAT, offsetof(struct vGraph_simpleVertex, position)},
-    {.binding=0, .location=1, .format=VK_FORMAT_R32G32B32_SFLOAT, offsetof(struct vGraph_simpleVertex, color)}
-};
-static const int32_t vertexInputAttributeDescriptionCount = sizeof(vertexInputAttributeDescription)/sizeof(struct VkVertexInputAttributeDescription);
-
-
 static const uint16_t simpleIndexArray[] =
 {
     1,3,5, 1,5,7, 1,7,9, 1,4,8, 0xa,3,6, 2,5,8, 0xa,4,7, 9,2,6, 0xa,2,0, 2,4,0, 0,4,6, 0,6,8, 0xa,0,8
@@ -160,6 +144,61 @@ static const uint16_t simpleIndexArray[] =
 /* negative star
     1,3,2, 3,5,4, 6,5,7, 9,8,7, 1,0xa,9
 */
+
+#endif
+
+static const struct vGraph_simpleVertex simpleVertexArray[] = {
+    {{-0.15f, -0.9f}, {1.0f ,1.0f ,1.0f}},
+    {{0.15f, -0.9f}, {1.0f ,1.0f ,1.0f}},
+    {{0.15f, -0.6f}, {1.0f ,1.0f ,1.0f}},
+    {{-0.15f, -0.6f}, {1.0f ,1.0f ,1.0f}},
+    
+    {{-0.1f, -0.5f}, {1.0f ,1.0f ,1.0f}},
+    {{0.1f, -0.5f}, {1.0f ,1.0f ,1.0f}},
+    {{0.1f, 0.1f}, {1.0f ,1.0f ,1.0f}},
+    {{-0.1f, 0.1f}, {1.0f ,1.0f ,1.0f}},
+    
+    {{0.15f, -0.4f}, {1.0f ,1.0f ,1.0f}},
+    {{0.8f, -0.4f}, {1.0f ,1.0f ,1.0f}},
+    {{0.8f, -0.3f}, {1.0f ,1.0f ,1.0f}},
+    {{0.15f, -0.3f}, {1.0f ,1.0f ,1.0f}},
+    
+    {{-0.8f, -0.4f}, {1.0f ,1.0f ,1.0f}},
+    {{-0.15f, -0.4f}, {1.0f ,1.0f ,1.0f}},
+    {{-0.15f, -0.3f}, {1.0f ,1.0f ,1.0f}},
+    {{-0.8f, -0.3f}, {1.0f ,1.0f ,1.0f}},
+    
+    
+    {{0.1f, 0.15f}, {1.0f ,1.0f ,1.0f}},
+    {{0.2f, 0.15f}, {1.0f ,1.0f ,1.0f}},
+    {{0.2f, 0.9f}, {1.0f ,1.0f ,1.0f}},
+    {{0.1f, 0.9f}, {1.0f ,1.0f ,1.0f}},
+    
+    {{-0.2f, 0.15f}, {1.0f ,1.0f ,1.0f}},
+    {{-0.1f, 0.15f}, {1.0f ,1.0f ,1.0f}},
+    {{-0.1f, 0.9f}, {1.0f ,1.0f ,1.0f}},
+    {{-0.2f, 0.9f}, {1.0f ,1.0f ,1.0f}},
+};
+
+static const uint16_t simpleIndexArray[] = {
+    0,1,2,0,2,3, 4,5,6,4,6,7, 8,9,0xa,8,0xa,0xb, 0xc,0xd,0xe,0xc,0xe,0xf, 0x10,0x11,0x12,0x10,0x12,0x13, 0x14,0x15,0x16,0x14,0x16,0x17
+};
+
+static const int32_t simpleVertexArrayCount = sizeof(simpleVertexArray)/sizeof(struct vGraph_simpleVertex);
+static const int32_t simpleVertexSize = sizeof(struct vGraph_simpleVertex);
+
+static const VkVertexInputBindingDescription vertexInputBindingDescription = {
+    .binding = 0,
+    .stride = sizeof(struct vGraph_simpleVertex),
+    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+};
+
+static const VkVertexInputAttributeDescription vertexInputAttributeDescription[] = {
+    {.binding=0, .location=0, .format=VK_FORMAT_R32G32_SFLOAT, offsetof(struct vGraph_simpleVertex, position)},
+    {.binding=0, .location=1, .format=VK_FORMAT_R32G32B32_SFLOAT, offsetof(struct vGraph_simpleVertex, color)}
+};
+static const int32_t vertexInputAttributeDescriptionCount = sizeof(vertexInputAttributeDescription)/sizeof(struct VkVertexInputAttributeDescription);
+
 
 static const int32_t simpleIndexArrayCount = sizeof(simpleIndexArray)/sizeof(int16_t);
 static const int32_t simpleIndexSize = sizeof(int16_t);
