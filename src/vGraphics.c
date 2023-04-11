@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+
+
 #include <cglm/cglm.h>
 
 /*
@@ -78,9 +80,9 @@ static int32_t s_allocateCommandBuffer(struct vGraph_commandBufferDetails *comma
 static int32_t s_createSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);
 static void s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device);//to change
 
-static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer, VkBuffer indexBuffer);
+static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t currentFrame, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer, VkBuffer indexBuffer);
 
-static void s_updateUniformBuffer(int32_t currentFrame);
+static void s_updateUniformBuffer(int32_t currentFrame, VkExtent2D *extent, struct utils_pointerArray *uniformBuffersMap);
 
 /*------------------    globals    ------------------*/
 
@@ -290,13 +292,13 @@ vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipe
     
     vkResetFences(graphicsPacket->device, 1, (graphicsPipeline->syncObjects.inFlightFenceArray.fences)+graphicsPipeline->currentFrame);
 
-    uint32_t imageIndex;
-    vkAcquireNextImageKHR(graphicsPacket->device, graphicsPacket->swapchain, UINT64_MAX, *((graphicsPipeline->syncObjects.imageAvailableSemaphoreArray.semaphores)+graphicsPipeline->currentFrame), VK_NULL_HANDLE, &imageIndex);
+    uint32_t currentFrame;
+    vkAcquireNextImageKHR(graphicsPacket->device, graphicsPacket->swapchain, UINT64_MAX, *((graphicsPipeline->syncObjects.imageAvailableSemaphoreArray.semaphores)+graphicsPipeline->currentFrame), VK_NULL_HANDLE, &currentFrame);
     
     vkResetCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), 0);
-    s_recordCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray), graphicsPipeline->vertexBuffer, graphicsPipeline->indexBuffer);
+    s_recordCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), currentFrame, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray), graphicsPipeline->vertexBuffer, graphicsPipeline->indexBuffer);
     
-    s_updateUniformBuffer(graphicsPipeline->currentFrame);
+    s_updateUniformBuffer(graphicsPipeline->currentFrame, &(graphicsPacket->swapchainDetails.extent), &(graphicsPipeline->uniformBuffersMap));
     
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -329,7 +331,7 @@ vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipe
     VkSwapchainKHR swapChains[] = {graphicsPacket->swapchain};
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pImageIndices = &currentFrame;
 
     presentInfo.pResults = NULL; // Optional
 
@@ -1018,7 +1020,7 @@ s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice device){
 
 static
 int32_t
-s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer, VkBuffer indexBuffer){
+s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t currentFrame, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer, VkBuffer indexBuffer){
     
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -1031,7 +1033,7 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
     VkRenderPassBeginInfo renderPassInfo = {};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = renderPass;
-    renderPassInfo.framebuffer = frameBufferArray->frameBuffers[imageIndex];
+    renderPassInfo.framebuffer = frameBufferArray->frameBuffers[currentFrame];
     
     renderPassInfo.renderArea.offset = (VkOffset2D){0, 0};
     renderPassInfo.renderArea.extent = swapchainDetails->extent;
@@ -1078,18 +1080,51 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
     return 0;
 }
 
+static int32_t testPrintMat4(mat4 mat);
+
 static 
 void
-s_updateUniformBuffer(int32_t currentFrame){
+s_updateUniformBuffer(int32_t currentFrame, VkExtent2D *extent, struct utils_pointerArray *uniformBuffersMap){
     struct vGraph_uniformBufferObject localUniformBuffer = {};
-    //mat4 hola = GLM_MAT4_IDENTITY_INIT;
     vec3 test = GLM_VEC3_ZERO_INIT;
-    glm_rotate(localUniformBuffer.model, 2, test);
+    test[2] = 1.0f;
     
-    /*
-    localUniformBuffer.model = 
-    localUniformBuffer.view =
-    localUniformBuffer.project =
-    */
+    glm_mat4_copy(GLM_MAT4_IDENTITY, localUniformBuffer.model);
     
+    glm_rotate(localUniformBuffer.model, 2*glm_rad(45), test);
+    //testPrintMat4(localUniformBuffer.model);
+    
+    static mat4  lookAtPreCalc = {
+        {-0.707107f, -0.408248f, 0.57735f, 0.0f},
+        {0.707107f, -0.408248f, 0.57735f, 0.0f},
+        {0.0f, 0.816497f, 0.57735f, 0.0f},
+        {0.0f, 0.0f, -3.4641f, 1.0f,}
+    };
+    glm_mat4_copy(lookAtPreCalc, localUniformBuffer.view);
+    
+    //testPrintMat4(localUniformBuffer.view);
+    
+    //printf("%d %d\n", extent->width, extent->height);
+    glm_perspective(glm_rad(45), extent->width/(float)extent->height, 0.1f, 10.0f, localUniformBuffer.proj);
+    
+    localUniformBuffer.proj[1][1] *= -1;
+    
+    ;
+    
+    //testPrintMat4(localUniformBuffer.proj);
+    //exit(12);
+}
+
+//test matrix print function
+static
+int32_t
+testPrintMat4(mat4 mat){
+    printf("---------------------------------------\n");
+    for(int32_t iterY=0; iterY<4; iterY++){
+        for(int32_t iterX=0; iterX<4; iterX++){
+            printf("%f ", mat[iterY][iterX]);
+        }
+        printf("\n");
+    }
+    printf("---------------------------------------\n");
 }
