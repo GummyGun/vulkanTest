@@ -75,7 +75,7 @@ struct vGraph_simpleVertex{
 struct vGraph_uniformBufferObject{
     mat4 model;
     mat4 view;
-    mat4 proj;
+    mat4 projection;
 };
 
 struct vGraph_vertexDescription{

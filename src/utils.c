@@ -80,6 +80,7 @@ utils_createPArray(struct utils_pointerArray *array, int32_t size){
         fprintf(stderr, "Error: Calloc failded\n");
         return 1;
     }
+    
     /*
     printf("arraySize %d\n", sizeof(void*) * size);
     printf("arraySize %d\n", size);
@@ -96,6 +97,21 @@ utils_deletePArray(struct utils_pointerArray *array){
     return 1;
 }
 
+int32_t
+utils_debugPrint(struct utils_pointerArray *array){
+    if(array->data==NULL){
+        printf("pArr len: %d\n", 0);
+        
+    }else{
+        printf("pArr len: %d\n", array->size);
+        printf("pArr data: %p\n", array->data);
+        for(int32_t iter=0; iter<array->size; iter++){
+            printf("\t%p\n", (array->data)+iter);
+        }
+    }
+    return 0;
+}
+
 /* =============================== static methods =============================== */
 /*                                                                                */
 /*                                                                                */
@@ -109,4 +125,5 @@ utils_deletePArray(struct utils_pointerArray *array){
 /*                                                                                */
 /*                                                                                */
 /* =============================== static methods =============================== */
+
 

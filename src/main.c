@@ -10,6 +10,7 @@
 
 
 int main(){
+    printf("%s\n\n", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     printf("Startup\n");
     
     struct window_window window = {};
@@ -17,6 +18,7 @@ int main(){
     struct vGraph_pipeline vulkanPipeline = {};
     
     vulkanStruct.debugMode = 1;
+    
     
     if(window_initWindow(&window, 900, 900, "vulkanTest")){
         fprintf(stderr, "[Window] Error: Creating the window\n");

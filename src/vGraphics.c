@@ -9,6 +9,9 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <cglm/cglm.h>
+#include <time.h>
+
+#include <assert.h>
 
 /*
 #define STB_IMAGE_IMPLEMENTATION
@@ -18,7 +21,7 @@
 
 /*------------------  defines ------------------*/
 
-#define FRAMES_IN_FLIGHT 2
+#define FRAMES_IN_FLIGHT 3
 
 /*------------------  enums   ------------------*/
 
@@ -71,7 +74,8 @@ static int32_t s_createIndexBuffer(VkBuffer *indexBuffer, VkDeviceMemory *indexB
 static void s_deleteIndexBuffer(VkBuffer *indexBuffer, VkDeviceMemory *indexBufferMemory, VkDevice device);
 
 static int32_t s_createUniformBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, const VkPhysicalDeviceMemoryProperties const *PDMemProperties, VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool);
-static void s_deleteUnionBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, VkDevice device);
+static void s_updateUniformBuffer(int32_t currentFrame, struct utils_pointerArray *uniformBuffersMap);
+static void s_deleteUniformBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, VkDevice device);
     
 static int32_t s_allocateCommandBuffer(struct vGraph_commandBufferDetails *commandBufferArray, VkDevice device, VkCommandPool commandPool);
 
@@ -80,7 +84,6 @@ static void s_deleteSyncObjects(struct vGraph_syncObjects *syncObjects, VkDevice
 
 static int32_t s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevice device, struct vInit_swapchainDetails *swapchainDetails, VkRenderPass renderPass, VkPipeline graphicsPipeline, struct vGraph_frameBufferDetails *frameBufferArray, VkBuffer vertexBuffer, VkBuffer indexBuffer);
 
-static void s_updateUniformBuffer(int32_t currentFrame);
 
 /*------------------    globals    ------------------*/
 
@@ -126,7 +129,7 @@ static const struct vGraph_simpleVertex simpleVertexArray[] =
 */
 static const uint16_t simpleIndexArray[] =
 {
-    1,3,5, 1,5,7, 1,7,9, 1,4,8, 0xa,3,6, 2,5,8, 0xa,4,7, 9,2,6, 0xa,2,0, 2,4,0, 0,4,6, 0,6,8, 0xa,0,8
+    //1,3,5, 1,5,7, 1,7,9, 1,4,8, 0xa,3,6, 2,5,8, 0xa,4,7, 9,2,6, 0xa,2,0, 2,4,0, 0,4,6, 0,6,8, 0xa,0,8
 };
 
 /* pentagrama mas estrella
@@ -271,7 +274,7 @@ vGraph_destroyPipeline(struct vGraph_pipeline *graphicsPipeline, struct vInit_gr
     s_deleteCommandPool(&(graphicsPipeline->commandPool), graphicsPacket->device);
     s_deleteVertexBuffer(&(graphicsPipeline->vertexBuffer), &(graphicsPipeline->vertexBufferMemory), graphicsPacket->device);
     s_deleteIndexBuffer(&(graphicsPipeline->indexBuffer), &(graphicsPipeline->indexBufferMemory), graphicsPacket->device);
-    s_deleteUnionBuffers(&(graphicsPipeline->uniformBuffers), &(graphicsPipeline->uniformBuffersMemory), &(graphicsPipeline->uniformBuffersMap), graphicsPacket->device);
+    s_deleteUniformBuffers(&(graphicsPipeline->uniformBuffers), &(graphicsPipeline->uniformBuffersMemory), &(graphicsPipeline->uniformBuffersMap), graphicsPacket->device);
     s_deleteFrameBuffer(&(graphicsPipeline->frameBufferArray), graphicsPacket->device);
     s_deletePipeline(graphicsPipeline, graphicsPacket->device);
     s_deleteDescriptorSetLayout(&(graphicsPipeline->descriptorSetLayout), graphicsPacket->device);
@@ -296,7 +299,7 @@ vGraph_drawFrame(struct vInit_graphicsStruct *graphicsPacket, struct vGraph_pipe
     vkResetCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), 0);
     s_recordCommandBuffer(*((graphicsPipeline->commandBufferArray.commandBuffers)+graphicsPipeline->currentFrame), imageIndex, graphicsPacket->device, &(graphicsPacket->swapchainDetails), graphicsPipeline->renderPass, graphicsPipeline->graphicsPipeline, &(graphicsPipeline->frameBufferArray), graphicsPipeline->vertexBuffer, graphicsPipeline->indexBuffer);
     
-    s_updateUniformBuffer(graphicsPipeline->currentFrame);
+    s_updateUniformBuffer(graphicsPipeline->currentFrame, &graphicsPipeline->uniformBuffersMap);
     
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -899,28 +902,31 @@ s_createUniformBuffers(struct utils_pointerArray *uniformBuffers, struct utils_p
     utils_createPArray(uniformBuffersMap, FRAMES_IN_FLIGHT);
     printf("uniform buffer size %d bytes\n", uniformBufferSize);
     
-    for(int32_t iter=0; iter<2; iter++){
+    
+    for(int32_t iter=0; iter<FRAMES_IN_FLIGHT; iter++){
         
         if(s_createBuffer(((VkBuffer*)uniformBuffers->data)+iter, ((VkDeviceMemory*)uniformBuffersMemory->data)+iter, uniformBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, PDMemProperties, device)){
             fprintf(stderr, "Error: generating the uniform buffers\n");
             return 1;
         }
         
-        vkMapMemory(device, *(((VkDeviceMemory*)uniformBuffersMemory->data)+iter), 0, uniformBufferSize, 0, uniformBuffersMap->data+iter);
+        vkMapMemory(device, *(((VkDeviceMemory*)uniformBuffersMemory->data)+iter), 0, uniformBufferSize, 0, ((void**)uniformBuffersMap->data)+iter);
         
     }
+    
     return 0;
 }
 
 static
 void
-s_deleteUnionBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, VkDevice device){
+s_deleteUniformBuffers(struct utils_pointerArray *uniformBuffers, struct utils_pointerArray *uniformBuffersMemory, struct utils_pointerArray *uniformBuffersMap, VkDevice device){
     
     for(int32_t iter=0; iter<FRAMES_IN_FLIGHT; iter++){
         vkUnmapMemory(device, *(((VkDeviceMemory*)uniformBuffersMemory->data)+iter)); 
         s_deleteBuffer(((VkBuffer*)uniformBuffers->data)+iter, ((VkDeviceMemory*)uniformBuffersMemory->data)+iter, device);
         
     }
+    
     utils_deletePArray(uniformBuffers);
     utils_deletePArray(uniformBuffersMemory);
     utils_deletePArray(uniformBuffersMap);
@@ -1080,16 +1086,29 @@ s_recordCommandBuffer(VkCommandBuffer commandBuffer, int32_t imageIndex, VkDevic
 
 static 
 void
-s_updateUniformBuffer(int32_t currentFrame){
+s_updateUniformBuffer(int32_t currentFrame, struct utils_pointerArray *uniformBuffersMap){
     struct vGraph_uniformBufferObject localUniformBuffer = {};
-    //mat4 hola = GLM_MAT4_IDENTITY_INIT;
-    vec3 test = GLM_VEC3_ZERO_INIT;
-    glm_rotate(localUniformBuffer.model, 2, test);
+    
+    clock_t timeUnit;
+    
+    timeUnit = clock();
     
     /*
-    localUniformBuffer.model = 
-    localUniformBuffer.view =
-    localUniformBuffer.project =
+    TODO: implemet trigonometric functions
     */
     
+    mat4 modelHolder = {{1.000000f, 0.000001f, 0.000000f, 0.000000f}, {-0.000001f, 1.000000f, 0.000000f, 0.000000f}, {0.000000f, 0.000000f, 1.000000f, 0.000000f}, {0.000000f, 0.000000f, 0.000000f, 1.000000f}};
+    memcpy(&localUniformBuffer.model, &modelHolder, sizeof(mat4));
+    mat4 viewHolder = {{-0.707107f, -0.408248f, 0.577350f, 0.000000f}, {0.707107f, -0.408248f, 0.577350f, 0.000000f}, {0.000000f, 0.816497f, 0.577350f, 0.000000f}, {-0.000000f, -0.000000f, -3.464102f, 1.000000f}};
+    memcpy(&localUniformBuffer.view, &viewHolder, sizeof(mat4));
+    mat4 projectionHolder = {{-0.707107, -0.408248, 0.577350, 0.000000}, {0.707107, -0.408248, 0.577350, 0.000000}, {0.000000, 0.816497, 0.577350, 0.000000}, {-0.000000, -0.000000, -3.464102, 1.000000}};
+    memcpy(&localUniformBuffer.projection, &projectionHolder, sizeof(mat4));
+    
+    memcpy(*(((void**)uniformBuffersMap->data)+currentFrame), &localUniformBuffer, sizeof(struct vGraph_uniformBufferObject));
+    //printf("%p\n", uniformBuffersMap->data+currentFrame);
+    //printf("%p\n", uniformBuffersMap->data+currentFrame);
+    
+    //assert(0);
 }
+
+

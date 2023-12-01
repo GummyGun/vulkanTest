@@ -654,7 +654,6 @@ s_getEnabledExtensionNames(char ***extensionNamesArray, int32_t *extensionNamesC
     }
     
     for(int32_t iter=0; iter<windowExtensionsCount; iter++){
-        printf("hola\n");
         *((*extensionNamesArray)+iter) = calloc(1,VK_MAX_EXTENSION_NAME_SIZE*sizeof(char));
         strcpy(*((*extensionNamesArray)+iter), *(windowExtensions+iter));
     }
